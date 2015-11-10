@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
         input_filename = "-";
     }
 
-    //DataStorage ds(output_filename);
+    DataStorage ds(output_filename);
     index_pos_type index_pos;
     index_neg_type index_neg;
     location_handler_type location_handler(index_pos, index_neg);
