@@ -28,12 +28,16 @@ typedef osmium::handler::NodeLocationsForWays<index_pos_type,
         location_handler_type;*/
 
 class DataStorage {
-    OGRSpatialReference sparef;
+    OGRSpatialReference sparef_wgs84;
+    OGRSpatialReference sparef_webmercator;
+    OGRCoordinateTransformation *srs_tranformation;
     OGRDataSource *data_source;
     OGRLayer *layer_ways;
+    OGRLayer *layer_vhcl;
     osmium::geom::OGRFactory<> ogr_factory;
     string output_database;
     string output_filename;
+    //const char *SRS = "WGS84";
 
     /***
      * Structure to remember the pedestrian used roads to create sidewalks and
@@ -98,7 +102,7 @@ class DataStorage {
             OGRwkbGeometryType geometry) {
 
         const char* options[] = {"OVERWRITE=YES", nullptr};
-        layer = data_source->CreateLayer(name, &sparef, geometry,
+        layer = data_source->CreateLayer(name, &sparef_wgs84, geometry,
                 const_cast<char**>(options));
         if (!layer) {
             cerr << "Layer " << name << " creation failed." << endl;
@@ -141,18 +145,31 @@ class DataStorage {
             exit(1);
         }
 
-        sparef.SetWellKnownGeogCS("WGS84");
+        sparef_wgs84.SetWellKnownGeogCS("WGS84");
+        //sparef_webmercator.importFromProj4("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs");
+        //srs_transformation = OGRCreateCoordinateTransformation(sparef_wgs84,
+        //    sparef_webmercator);
+        //if (!srs_transformation) {
+            //cerr << "Transformation object creation failed." << endl;
+            //exit(1);
+        //}
 
-        create_table(layer_ways, "ways", wkbLineString);
-        if (!layer_ways) {
-            cout << "hilfe computer" << endl;
-            exit(1);
-        }
+        create_table(layer_ways, "waysways", wkbLineString);
         create_field(layer_ways, "gid", OFTInteger, 10); 
-        create_field(layer_ways, "class_id", OFTInteger, 10);
+        create_field(layer_ways, "claswayss_id", OFTInteger, 10);
         create_field(layer_ways, "length", OFTReal, 10);
         create_field(layer_ways, "name", OFTString, 40);
         create_field(layer_ways, "osm_id", OFTString, 14); 
+
+        create_table(layer_vhcl, "vhcl", wkbLineString);
+        create_field(layer_vhcl, "gid", OFTInteger, 10); 
+        create_field(layer_vhcl, "class_id", OFTInteger, 10);
+        create_field(layer_vhcl, "sidewalk", OFTString, 1);
+        create_field(layer_vhcl, "type", OFTString, 20);
+        create_field(layer_vhcl, "lanes", OFTInteger, 10);
+        create_field(layer_vhcl, "length", OFTReal, 10);
+        create_field(layer_vhcl, "name", OFTString, 40);
+        create_field(layer_vhcl, "osm_id", OFTString, 14); 
     }
 
 //    const string get_timestamp(osmium::Timestamp timestamp) {
@@ -210,7 +227,7 @@ public:
         OGRCleanupAll();
     }
 
-    void store_pedestrian_way(string name, OGRGeometry *geometry, string type,
+    void store_pedestrian_road(string name, OGRGeometry *geometry, string type,
             double length, string osm_id) {
 
         PedestrianRoad *pedestrian_road = new PedestrianRoad(name, geometry,
@@ -218,7 +235,7 @@ public:
         pedestrian_road_set.insert(pedestrian_road);
     }
 
-    void store_vehicle_way(string name, OGRGeometry *geometry, char sidewalk,
+    void store_vehicle_road(string name, OGRGeometry *geometry, char sidewalk,
             string type, int lanes, double length, string osm_id) {
 
         VehicleRoad *vehicle_road = new VehicleRoad(name, geometry, sidewalk,
@@ -247,6 +264,35 @@ public:
             if (layer_ways->CreateFeature(feature) != OGRERR_NONE) {
                 cerr << "Failed to create ways feature." << endl;
             }
+            OGRFeature::DestroyFeature(feature);
+        }
+    }
+
+    void insert_vhcl() {
+        int gid = 0;
+        for (VehicleRoad *road : vehicle_road_set) {
+            gid++;
+            OGRFeature *feature;
+            feature = OGRFeature::CreateFeature(layer_vhcl->GetLayerDefn());
+
+            if (feature->SetGeometry(road->geometry) != OGRERR_NONE) {
+                cerr << "Failed to create geometry feature for way: ";
+                cerr << road->osm_id << endl;
+            }
+
+            feature->SetField("gid", gid);
+            feature->SetField("class_id", 0);
+            feature->SetField("sidewalk", road->sidewalk);
+            feature->SetField("type", road->type.c_str());
+            feature->SetField("lanes", road->lanes);
+            feature->SetField("length", road->length);
+            feature->SetField("name", road->name.c_str());
+            feature->SetField("osm_id", road->osm_id.c_str());
+
+            if (layer_vhcl->CreateFeature(feature) != OGRERR_NONE) {
+                cerr << "Failed to create ways feature." << endl;
+            }
+	    cout << "inserted way: " << road->osm_id << endl;
             OGRFeature::DestroyFeature(feature);
         }
     }

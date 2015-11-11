@@ -41,7 +41,7 @@ typedef geos::geom::LineString linestring_type;
 #include "tagcheck.hpp"
 #include "datastorage.hpp"
 #include "wayhandler.hpp"
-
+#include "geometricoperations.hpp"
 
 
 void print_help() {
@@ -95,12 +95,26 @@ int main(int argc, char* argv[]) {
     index_neg_type index_neg;
     location_handler_type location_handler(index_pos, index_neg);
     location_handler.ignore_errors();
-
+    
+    /*
     osmium::io::Reader reader(input_filename);
     WayHandler way_handler(ds, location_handler);
     osmium::apply(reader, location_handler, way_handler);
     reader.close();
     ds.insert_ways();
+    ds.insert_vhcl();
 
     cout << "ready" << endl;
+    */
+
+    Coordinate delta = GeomOperate::inverse_haversine(48.1, 9.18, 20);
+    cout << "start: " << "48.1, 9.18" << endl;
+    cout << "dlon: " << delta.lon << " dlat: " << delta.lat << endl;
+    Coordinate new_point;
+    new_point = GeomOperate::vertical_point(48.1, 9.18, 48.4, 9.23, 20);
+    double distance;
+    distance = GeomOperate::haversine(48.1, 9.18, new_point.lon, new_point.lat);
+    cout << "dlon: " << new_point.lon << " dlat: " << new_point.lat << endl;
+    cout << "D: " << distance << endl;
+    
 }

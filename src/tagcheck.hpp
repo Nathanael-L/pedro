@@ -57,7 +57,7 @@ public:
             "motorway", "trunk", "primary", "secondary", "tertiary",
             "unclassified", "road", "residential", "service",        
             "motorway_link", "trunk_link", "primary_link", "secondary_link",
-            "tertiary_link", "bus_guideway"
+            "tertiary_link", "bus_guideway", "unclassified"
         };
         vector<string> type_vector;
         for (string item : type_list) {
@@ -144,6 +144,21 @@ public:
         const char *name = osm_object.get_value_by_key("name");
         if (!name) name = "";
         return name;
+    }
+
+    static const char get_sidewalk(const osmium::OSMObject &osm_object) {
+        const char *sidewalk= osm_object.get_value_by_key("sidewalk");
+        char sidewalk_chr = 'b';
+        if (sidewalk) {
+            if ((!strcmp(sidewalk, "none")) || (!strcmp(sidewalk, "no"))) {
+                sidewalk_chr = 'n';
+            } else if (!strcmp(sidewalk, "right")) {
+                sidewalk_chr = 'r';
+            } else if (!strcmp(sidewalk, "left")) {
+                sidewalk_chr = 'l';
+            }
+        }
+        return sidewalk_chr;
     }
 
     static int get_lanes(const osmium::OSMObject &osm_object) {
