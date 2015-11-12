@@ -15,20 +15,55 @@
 
 using namespace std;
 
-/*typedef osmium::index::map::Dummy<osmium::unsigned_object_id_type,
-                                  osmium::Location>
-        index_neg_type;
+/***
+ * Structure to remember the pedestrian and vehicle used roads to create
+ * sidewalks and crossings.
+ *
+ * length is in kilometers (pgRouting-style)
+ *
+ * Sidewalk Characters are:
+ *  'l' = left
+ *  'r' = right
+ *  'n' = none
+ * length is in kilometers (pgRouting-style)
+ *
+ */
 
-typedef osmium::index::map::SparseMemArray<osmium::unsigned_object_id_type,
-                                           osmium::Location>
-        index_pos_type;
+struct Road {
+    string name;
+    OGRGeometry *geometry;
+    char sidewalk;
+    string type;
+    int lanes;
+    double length;
+    string osm_id;
 
-typedef osmium::handler::NodeLocationsForWays<index_pos_type, 
-                                              index_neg_type>
-        location_handler_type;*/
+    Road(string name, OGRGeometry *geometry,
+            string type, double length, string osm_id) {
+
+        this->name = name;
+        this->geometry = geometry;
+        this->type = type;
+        this->length = length;
+        this->osm_id = osm_id;
+    }
+
+    Road(string name, OGRGeometry *geometry,
+            char sidewalk, string type, int lanes,
+            double length, string osm_id) {
+
+        this->name = name;
+        this->geometry = geometry;
+        this->sidewalk = sidewalk;
+        this->type = type;
+        this->lanes = lanes;
+        this->length = length;
+        this->osm_id = osm_id;
+    }
+};
+
 
 class DataStorage {
-    OGRSpatialReference sparef_wgs84;
     OGRSpatialReference sparef_webmercator;
     OGRCoordinateTransformation *srs_tranformation;
     OGRDataSource *data_source;
@@ -38,65 +73,6 @@ class DataStorage {
     string output_database;
     string output_filename;
     //const char *SRS = "WGS84";
-
-    /***
-     * Structure to remember the pedestrian used roads to create sidewalks and
-     * crossings.
-     *
-     * length is in kilometers (pgRouting-style)
-     *
-     */
-    struct PedestrianRoad {
-        string name;
-        OGRGeometry *geometry;
-        string type;
-        double length;
-        string osm_id;
-
-        PedestrianRoad(string name, OGRGeometry *geometry,
-                string type, double length, string osm_id) {
-
-            this->name = name;
-            this->geometry = geometry;
-            this->type = type;
-            this->length = length;
-            this->osm_id = osm_id;
-        }
-    };
-
-    /***
-     * Structure to remember the vehicle used roads to create sidewalks and
-     * crossings.
-     *
-     * Sidewalk Characters are:
-     *  'l' = left
-     *  'r' = right
-     *  'n' = none
-     * length is in kilometers (pgRouting-style)
-     *
-     */
-    struct VehicleRoad {
-        string name;
-        OGRGeometry *geometry;
-        char sidewalk;
-        string type;
-        int lanes;
-        double length;
-        string osm_id;
-
-        VehicleRoad(string name, OGRGeometry *geometry,
-                char sidewalk, string type, int lanes,
-                double length, string osm_id) {
-
-            this->name = name;
-            this->geometry = geometry;
-            this->sidewalk = sidewalk;
-            this->type = type;
-            this->lanes = lanes;
-            this->length = length;
-            this->osm_id = osm_id;
-        }
-    };
 
     void create_table(OGRLayer *&layer, const char *name,
             OGRwkbGeometryType geometry) {
@@ -210,8 +186,9 @@ public:
 //     * riverbanks found in pass 4. 
 //     */
 
-    google::sparse_hash_set<VehicleRoad*> vehicle_road_set;
-    google::sparse_hash_set<PedestrianRoad*> pedestrian_road_set;
+    OGRSpatialReference sparef_wgs84;
+    google::sparse_hash_set<Road*> vehicle_road_set;
+    google::sparse_hash_set<Road*> pedestrian_road_set;
 
     explicit DataStorage(string outfile) :
             output_filename(outfile) {
@@ -227,25 +204,28 @@ public:
         OGRCleanupAll();
     }
 
-    void store_pedestrian_road(string name, OGRGeometry *geometry, string type,
-            double length, string osm_id) {
+    Road *store_pedestrian_road(string name, OGRGeometry *geometry,
+	    string type, double length, string osm_id) {
 
-        PedestrianRoad *pedestrian_road = new PedestrianRoad(name, geometry,
+        Road *pedestrian_road = new Road(name, geometry,
                 type, length, osm_id);
         pedestrian_road_set.insert(pedestrian_road);
+	return pedestrian_road;
     }
 
-    void store_vehicle_road(string name, OGRGeometry *geometry, char sidewalk,
-            string type, int lanes, double length, string osm_id) {
+    Road *store_vehicle_road(string name, OGRGeometry *geometry,
+	    char sidewalk, string type, int lanes, double length,
+	    string osm_id) {
 
-        VehicleRoad *vehicle_road = new VehicleRoad(name, geometry, sidewalk,
+        Road *vehicle_road = new Road(name, geometry, sidewalk,
                 type, lanes, length, osm_id);
         vehicle_road_set.insert(vehicle_road);
+	return vehicle_road;
     }
 
     void insert_ways() {
         int gid = 0;
-        for (PedestrianRoad *road : pedestrian_road_set) {
+        for (Road *road : pedestrian_road_set) {
             gid++;
             OGRFeature *feature;
             feature = OGRFeature::CreateFeature(layer_ways->GetLayerDefn());
@@ -270,7 +250,7 @@ public:
 
     void insert_vhcl() {
         int gid = 0;
-        for (VehicleRoad *road : vehicle_road_set) {
+        for (Road *road : vehicle_road_set) {
             gid++;
             OGRFeature *feature;
             feature = OGRFeature::CreateFeature(layer_vhcl->GetLayerDefn());

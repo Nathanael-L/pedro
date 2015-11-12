@@ -96,25 +96,28 @@ int main(int argc, char* argv[]) {
     location_handler_type location_handler(index_pos, index_neg);
     location_handler.ignore_errors();
     
-    /*
     osmium::io::Reader reader(input_filename);
     WayHandler way_handler(ds, location_handler);
     osmium::apply(reader, location_handler, way_handler);
     reader.close();
-    ds.insert_ways();
-    ds.insert_vhcl();
+    //ds.insert_ways();
+    //ds.insert_vhcl();
 
     cout << "ready" << endl;
-    */
 
-    Coordinate delta = GeomOperate::inverse_haversine(48.1, 9.18, 20);
-    cout << "start: " << "48.1, 9.18" << endl;
-    cout << "dlon: " << delta.lon << " dlat: " << delta.lat << endl;
-    Coordinate new_point;
-    new_point = GeomOperate::vertical_point(48.1, 9.18, 48.4, 9.23, 20);
+    /*** TEST GEOM OPERATOR ***
+    GeomOperate geom_operate;
+    osmium::Location A, B;
+    A.set_lon(68.2); A.set_lat(9.18);
+    B.set_lon(68.0); B.set_lat(9.2);
+    osmium::Location delta = geom_operate.inverse_haversine(A.lon(), A.lat(), 20);
+    //cout << "dlon: " << delta.lon << " dlat: " << delta.lat << endl;
+    osmium::Location new_point;
+    new_point = geom_operate.vertical_point(B.lon(), B.lat(), A.lon(), A.lat(), 20);
     double distance;
-    distance = GeomOperate::haversine(48.1, 9.18, new_point.lon, new_point.lat);
-    cout << "dlon: " << new_point.lon << " dlat: " << new_point.lat << endl;
+    distance = geom_operate.haversine(A.lon(), A.lat(), new_point.lon(), new_point.lat());
+    cout << "LINESTRING (" << A.lat() << " " << A.lon() << ", " << B.lat() << " " << B.lon() << ")" << endl;
+    cout << "LINESTRING (" << B.lat() << " " << B.lon() << ", " << new_point.lat() << " " << new_point.lon() << ")" << endl;
     cout << "D: " << distance << endl;
-    
+    ***/
 }
