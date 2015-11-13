@@ -100,7 +100,19 @@ int main(int argc, char* argv[]) {
     WayHandler way_handler(ds, location_handler);
     osmium::apply(reader, location_handler, way_handler);
     reader.close();
-    //ds.insert_ways();
+
+    /*
+    for (auto node : ds.node_map) {
+	cout << node.first << ": " << endl;
+	for (auto link : node.second) {
+	    cout << "  " << link.first << " - " << link.second->name << endl;
+	}
+    }
+    */
+    ds.insert_ways();
+    way_handler.generate_sidewalks();
+    cout << "node_map size: " << ds.node_map.size() << endl;
+    cout << "finished_connections size: " << ds.finished_connections.size() << endl;
     //ds.insert_vhcl();
 
     cout << "ready" << endl;

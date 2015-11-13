@@ -42,6 +42,10 @@ struct Road {
             string type, double length, string osm_id) {
 
         this->name = name;
+	if (!geometry) {
+	    cerr << "bad reference for geometry" << endl;
+	    exit(1);
+	}
         this->geometry = geometry;
         this->type = type;
         this->length = length;
@@ -53,6 +57,10 @@ struct Road {
             double length, string osm_id) {
 
         this->name = name;
+	if (!geometry) {
+	    cerr << "bad reference for geometry" << endl;
+	    exit(1);
+	}
         this->geometry = geometry;
         this->sidewalk = sidewalk;
         this->type = type;
@@ -130,9 +138,9 @@ class DataStorage {
             //exit(1);
         //}
 
-        create_table(layer_ways, "waysways", wkbLineString);
+        create_table(layer_ways, "ways", wkbLineString);
         create_field(layer_ways, "gid", OFTInteger, 10); 
-        create_field(layer_ways, "claswayss_id", OFTInteger, 10);
+        create_field(layer_ways, "class_id", OFTInteger, 10);
         create_field(layer_ways, "length", OFTReal, 10);
         create_field(layer_ways, "name", OFTString, 40);
         create_field(layer_ways, "osm_id", OFTString, 14); 
@@ -175,24 +183,30 @@ class DataStorage {
 //    }
 //
 public:
-//    /***
-//     * node_map: Contains all first_nodes and last_nodes of found waterways with
-//     * the names and categories of the connected ways.
-//     * error_map: Contains ids of the potential error nodes (or mouths) to be
-//     * checked in pass 3.
-//     * error_tree: The potential error nodes remaining after pass 3 are stored
-//     * in here for a geometrical analysis in pass 5.
-//     * polygon_tree: contains prepared polygons of all water polygons except of
-//     * riverbanks found in pass 4. 
-//     */
+    /***
+     * node_map: Contains all first_nodes and last_nodes of found waterways with
+     * the names and categories of the connected ways.
+     * error_map: Contains ids of the potential error nodes (or mouths) to be
+     * checked in pass 3.
+     * error_tree: The potential error nodes remaining after pass 3 are stored
+     * in here for a geometrical analysis in pass 5.
+     * polygon_tree: contains prepared polygons of all water polygons except of
+     * riverbanks found in pass 4. 
+     */
 
     OGRSpatialReference sparef_wgs84;
     google::sparse_hash_set<Road*> vehicle_road_set;
     google::sparse_hash_set<Road*> pedestrian_road_set;
+    google::sparse_hash_map<osmium::object_id_type,
+	    vector<pair<osmium::object_id_type, Road*>>> node_map;
+    google::sparse_hash_set<string> finished_connections;
 
     explicit DataStorage(string outfile) :
             output_filename(outfile) {
-        init_db();
+
+        init_db(); 
+	node_map.set_deleted_key(-1);
+	finished_connections.set_deleted_key("");
         vehicle_road_set.set_deleted_key(nullptr);
         pedestrian_road_set.set_deleted_key(nullptr);
     }
@@ -205,7 +219,7 @@ public:
     }
 
     Road *store_pedestrian_road(string name, OGRGeometry *geometry,
-	    string type, double length, string osm_id) {
+        string type, double length, string osm_id) {
 
         Road *pedestrian_road = new Road(name, geometry,
                 type, length, osm_id);
@@ -214,8 +228,8 @@ public:
     }
 
     Road *store_vehicle_road(string name, OGRGeometry *geometry,
-	    char sidewalk, string type, int lanes, double length,
-	    string osm_id) {
+        char sidewalk, string type, int lanes, double length,
+        string osm_id) {
 
         Road *vehicle_road = new Road(name, geometry, sidewalk,
                 type, lanes, length, osm_id);
@@ -272,9 +286,18 @@ public:
             if (layer_vhcl->CreateFeature(feature) != OGRERR_NONE) {
                 cerr << "Failed to create ways feature." << endl;
             }
-	    cout << "inserted way: " << road->osm_id << endl;
             OGRFeature::DestroyFeature(feature);
         }
+    }
+    
+    void insert_in_node_map(osmium::object_id_type start_node,
+            osmium::object_id_type end_node,
+            Road *road) {
+	
+        node_map[start_node].push_back(pair<osmium::object_id_type, Road*>
+		(end_node, road));
+        node_map[end_node].push_back(pair<osmium::object_id_type, Road*>
+		(start_node, road));
     }
 };
 

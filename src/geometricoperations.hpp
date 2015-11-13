@@ -97,6 +97,17 @@ public:
         return point;
     }
 
+    osmium::Location vertical_point(osmium::Location start_location,
+            osmium::Location end_location, double distance,
+            bool clockwise = true) {
+
+            osmium::Location point;
+            point = vertical_point(start_location.lon(), start_location.lat(),
+                    end_location.lon(), end_location.lat(), distance,
+                    clockwise);
+	    return point;
+    }
+
     OGRGeometry *parallel_line(OGRLineString *source_line,
         double distance, bool left = true) {
 
@@ -123,9 +134,9 @@ public:
         //ERROR ABFANGEN
         ogr_factory.createFromWkt(&wkt, &sparef_wgs84, &target_line);
         return target_line;
-
-        
     }
+
+
 };
 
 #endif /* GEOMETRICOPERATIONS_HPP_ */
