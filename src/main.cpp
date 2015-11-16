@@ -37,11 +37,11 @@ typedef osmium::handler::NodeLocationsForWays<index_pos_type, index_neg_type>
         location_handler_type;
 typedef geos::geom::LineString linestring_type;
 
+#include "geometricoperations.hpp"
 #include "errorsum.hpp"
 #include "tagcheck.hpp"
 #include "datastorage.hpp"
 #include "wayhandler.hpp"
-#include "geometricoperations.hpp"
 
 
 void print_help() {
@@ -109,11 +109,12 @@ int main(int argc, char* argv[]) {
 	}
     }
     */
+
     ds.insert_ways();
     way_handler.generate_sidewalks();
     cout << "node_map size: " << ds.node_map.size() << endl;
     cout << "finished_connections size: " << ds.finished_connections.size() << endl;
-    //ds.insert_vhcl();
+    ds.insert_vhcl();
 
     cout << "ready" << endl;
 

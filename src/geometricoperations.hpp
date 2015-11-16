@@ -35,19 +35,25 @@ public:
 
     //from http://rosettacode.org/wiki/Haversine_formula#C
 
-    double haversine(double lon1, double lat1, double lon2,
-            double lat2) {
+    double haversine(double lon1, double lat1, double lon2, double lat2) {
 
         double dx, dy, dz;
         lat1 -= lat2;
         lat1 *= TO_RAD;
         lon1 *= TO_RAD;
         lon2 *= TO_RAD;
-
         dz = sin(lon1) - sin(lon2);
         dx = cos(lat1) * cos(lon1) - cos(lon2);
         dy = sin(lat1) * cos(lon1);
         return asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * EARTH_RADIUS;
+    }
+
+    double haversine(osmium::Location location1, osmium::Location location2) {
+        
+        double distance;
+        distance = haversine(location1.lon(), location1.lat(), location2.lon(),
+                location2.lat());
+        return distance;
     }
 
     //inverse haversine from http://stackoverflow.com/questions/3182260/python-geocode-filtering-by-distance
@@ -91,9 +97,11 @@ public:
         } else {
             reverse_angle -= 90;
         }
+        cout << "rev_angle: " << reverse_angle << endl;
         osmium::Location point;
         point.set_lon(lon1 + sin(reverse_angle * TO_RAD) * delta.lon());
         point.set_lat(lat1 + cos(reverse_angle * TO_RAD) * delta.lat());
+        cout << "LOC_VERT_POINT: " << point.lon() << ", " << point.lat() << endl;
         return point;
     }
 
@@ -136,6 +144,14 @@ public:
         return target_line;
     }
 
+    osmium::Location mean(osmium::Location location1,
+            osmium::Location location2) {
+
+        osmium::Location location;
+        location.set_lon((location1.lon() + location2.lon()) / 2);
+        location.set_lat((location1.lat() + location2.lat()) / 2);
+        return location;
+    }
 
 };
 

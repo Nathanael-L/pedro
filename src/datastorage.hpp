@@ -77,6 +77,7 @@ class DataStorage {
     OGRDataSource *data_source;
     OGRLayer *layer_ways;
     OGRLayer *layer_vhcl;
+    OGRLayer *layer_nodes;
     osmium::geom::OGRFactory<> ogr_factory;
     string output_database;
     string output_filename;
@@ -154,6 +155,9 @@ class DataStorage {
         create_field(layer_vhcl, "length", OFTReal, 10);
         create_field(layer_vhcl, "name", OFTString, 40);
         create_field(layer_vhcl, "osm_id", OFTString, 14); 
+
+        create_table(layer_nodes, "nodes", wkbPoint);
+        create_field(layer_nodes, "osm_id", OFTString, 14);
     }
 
 //    const string get_timestamp(osmium::Timestamp timestamp) {
@@ -288,6 +292,25 @@ public:
             }
             OGRFeature::DestroyFeature(feature);
         }
+    }
+
+    void insert_node(osmium::Location location, osmium::object_id_type osm_id) {
+        OGRFeature *feature;
+        feature = OGRFeature::CreateFeature(layer_nodes->GetLayerDefn());
+        
+        cout << "before cr_pnt" << endl;
+        OGRPoint *point = ogr_factory.create_point(location).release();
+        if (feature->SetGeometry(point) != OGRERR_NONE) {
+            cerr << "Failed to create geometry feature for way: ";
+            cerr << osm_id << endl;
+        }
+        cout << "after cr_pnt" << endl;
+        feature->SetField("osm_id", to_string(osm_id).c_str());
+
+        if (layer_nodes->CreateFeature(feature) != OGRERR_NONE) {
+            cerr << "Failed to create ways feature." << endl;
+        }
+        OGRFeature::DestroyFeature(feature);
     }
     
     void insert_in_node_map(osmium::object_id_type start_node,
