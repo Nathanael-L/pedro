@@ -79,7 +79,8 @@ class DataStorage {
     OGRLayer *layer_ways;
     OGRLayer *layer_vhcl;
     OGRLayer *layer_nodes;
-    osmium::geom::OGRFactory<> ogr_factory;
+    OGRLayer *layer_sidewalks;
+    geom::OGRFactory<> ogr_factory;
     string output_database;
     string output_filename;
     //const char *SRS = "WGS84";
@@ -161,22 +162,24 @@ class DataStorage {
 
         create_table(layer_nodes, "nodes", wkbPoint);
         create_field(layer_nodes, "osm_id", OFTString, 14);
+
+        create_table(layer_sidewalks, "sidewalks", wkbLineString);
     }
 
-    void order_clockwise(osmium::object_id_type node_id) {
-        osmium::Location node_location; 
-        osmium::Location last_location; 
+    void order_clockwise(object_id_type node_id) {
+        Location node_location; 
+        Location last_location; 
         int vector_size = node_map[node_id].size();
-        int mem_size = sizeof(pair<osmium::object_id_type, Road*>);
+        int mem_size = sizeof(pair<object_id_type, Road*>);
         node_location = location_handler.get_node_location(node_id);
         last_location = location_handler.get_node_location(node_map[node_id][vector_size - 1].first);
 
-        double angle_last = go.angle(node_location, last_location);
+        double angle_last = go.orientation(node_location, last_location);
         for (int i = vector_size - 1; i > 1; --i) {
-            osmium::object_id_type test_id = node_map[node_id][i - 1].first;
-            osmium::Location test_location;
+            object_id_type test_id = node_map[node_id][i - 1].first;
+            Location test_location;
             test_location = location_handler.get_node_location(test_id);
-            double angle_test = go.angle(node_location, test_location);
+            double angle_test = go.orientation(node_location, test_location);
             if (angle_last < angle_test) {
                 swap(node_map[node_id][i],
                         node_map[node_id][i-1]);
@@ -186,7 +189,7 @@ class DataStorage {
         }
     }
         
-//    const string get_timestamp(osmium::Timestamp timestamp) {
+//    const string get_timestamp(Timestamp timestamp) {
 //        string time_str = timestamp.to_iso();
 //        time_str.replace(10, 1, " ");
 //        time_str.replace(19, 1, "");
@@ -227,8 +230,8 @@ public:
     OGRSpatialReference sparef_wgs84;
     google::sparse_hash_set<Road*> vehicle_road_set;
     google::sparse_hash_set<Road*> pedestrian_road_set;
-    google::sparse_hash_map<osmium::object_id_type,
-	    vector<pair<osmium::object_id_type, Road*>>> node_map;
+    google::sparse_hash_map<object_id_type,
+	    vector<pair<object_id_type, Road*>>> node_map;
     google::sparse_hash_set<string> finished_connections;
 
     explicit DataStorage(string outfile,
@@ -322,7 +325,7 @@ public:
         }
     }
 
-    void insert_node(osmium::Location location, osmium::object_id_type osm_id) {
+    void insert_node(Location location, object_id_type osm_id) {
         OGRFeature *feature;
         feature = OGRFeature::CreateFeature(layer_nodes->GetLayerDefn());
         
@@ -339,13 +342,27 @@ public:
         OGRFeature::DestroyFeature(feature);
     }
     
-    void insert_in_node_map(osmium::object_id_type start_node,
-            osmium::object_id_type end_node,
+    void insert_sidewalk(OGRGeometry *sidewalk) {
+        OGRFeature *feature;
+        feature = OGRFeature::CreateFeature(layer_sidewalks->GetLayerDefn());
+
+        if (feature->SetGeometry(sidewalk) != OGRERR_NONE) {
+            cerr << "Failed to create geometry feature for sidewalk.";
+        }
+
+        if (layer_sidewalks->CreateFeature(feature) != OGRERR_NONE) {
+            cerr << "Failed to create ways feature." << endl;
+        }
+        OGRFeature::DestroyFeature(feature);
+    }
+
+    void insert_in_node_map(object_id_type start_node,
+            object_id_type end_node,
             Road *road) {
 	
-        node_map[start_node].push_back(pair<osmium::object_id_type, Road*>
+        node_map[start_node].push_back(pair<object_id_type, Road*>
 		(end_node, road));
-        node_map[end_node].push_back(pair<osmium::object_id_type, Road*>
+        node_map[end_node].push_back(pair<object_id_type, Road*>
 		(start_node, road));
         if (node_map[start_node].size() > 2) {
             order_clockwise(start_node);

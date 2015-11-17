@@ -1,0 +1,38 @@
+geos::geom::Coordinate vertical_coordinate(osmium::Location start_location,
+                osmium::Location end_location, double distance,
+                bool clockwise = true) {
+
+        double lon1 = start_location.lon();
+        double lat1 = start_location.lat();
+        double lon2 = end_location.lon();
+        double lat2 = end_location.lat();
+        osmium::Location delta;
+        delta = inverse_haversine(lon1, lat1, distance);
+        double reverse_angle;
+        reverse_angle = angle(lon1, lat1, lon2, lat2);
+        if (clockwise) {
+                reverse_angle += 90;
+        } else {
+                reverse_angle -= 90;
+        }
+        geos::geom::Coordinate coordinate;
+        coordinate.x = lon1 + sin(reverse_angle * TO_RAD) * delta.lon();
+        coordinate.y = lat1 + cos(reverse_angle * TO_RAD) * delta.lat();
+        return coordinate;
+}
+
+OGRGeometry *parallel_line(osmium::Location location1,
+                osmium::Location location2, double distance, bool left = true) {
+
+        OGRLineString *ogr_line = nullptr;
+        geos::geom::Geometry *geos_line = nullptr;
+        geos::geom::Coordinate start, end;
+        start = vertical_coordinate(location1, location2, distance, left);
+        end = vertical_coordinate(location1, location2, distance, !left);
+        geos::geom::CoordinateSequence *sequence;
+        sequence->add(start);
+        sequence->add(end);
+        geos_line = geos_factory.createLineString(sequence);
+        ogr_line = ogr_factory.createFromGEOS(hGEOSCtxt, geos_line);
+        return ogr_line;
+}

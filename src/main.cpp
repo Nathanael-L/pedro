@@ -28,12 +28,13 @@
 #include <google/sparse_hash_map>
 
 using namespace std;
+using namespace osmium;
 
-typedef osmium::index::map::Dummy<osmium::unsigned_object_id_type,
-        osmium::Location> index_neg_type;
-typedef osmium::index::map::SparseMemArray<osmium::unsigned_object_id_type,
-        osmium::Location> index_pos_type;
-typedef osmium::handler::NodeLocationsForWays<index_pos_type, index_neg_type>
+typedef index::map::Dummy<unsigned_object_id_type,
+        Location> index_neg_type;
+typedef index::map::SparseMemArray<unsigned_object_id_type,
+        Location> index_pos_type;
+typedef handler::NodeLocationsForWays<index_pos_type, index_neg_type>
         location_handler_type;
 typedef geos::geom::LineString linestring_type;
 
@@ -96,9 +97,9 @@ int main(int argc, char* argv[]) {
     location_handler.ignore_errors();
     DataStorage ds(output_filename, location_handler);
     
-    osmium::io::Reader reader(input_filename);
+    io::Reader reader(input_filename);
     WayHandler way_handler(ds, location_handler);
-    osmium::apply(reader, location_handler, way_handler);
+    apply(reader, location_handler, way_handler);
     reader.close();
 
     /*
@@ -110,6 +111,7 @@ int main(int argc, char* argv[]) {
     }
     */
 
+
     ds.insert_ways();
     way_handler.generate_sidewalks();
     cout << "node_map size: " << ds.node_map.size() << endl;
@@ -119,16 +121,16 @@ int main(int argc, char* argv[]) {
     cout << "ready" << endl;
 
     /*** TEST GEOM OPERATOR ***
-    GeomOperate geom_operate;
-    osmium::Location A, B;
+    GeomOperate go;
+    Location A, B;
     A.set_lon(68.2); A.set_lat(9.18);
     B.set_lon(68.0); B.set_lat(9.2);
-    osmium::Location delta = geom_operate.inverse_haversine(A.lon(), A.lat(), 20);
+    Location delta = go.inverse_haversine(A.lon(), A.lat(), 20);
     //cout << "dlon: " << delta.lon << " dlat: " << delta.lat << endl;
-    osmium::Location new_point;
-    new_point = geom_operate.vertical_point(B.lon(), B.lat(), A.lon(), A.lat(), 20);
+    Location new_point;
+    new_point = go.vertical_point(B.lon(), B.lat(), A.lon(), A.lat(), 20);
     double distance;
-    distance = geom_operate.haversine(A.lon(), A.lat(), new_point.lon(), new_point.lat());
+    distance = go.haversine(A.lon(), A.lat(), new_point.lon(), new_point.lat());
     cout << "LINESTRING (" << A.lat() << " " << A.lon() << ", " << B.lat() << " " << B.lon() << ")" << endl;
     cout << "LINESTRING (" << B.lat() << " " << B.lon() << ", " << new_point.lat() << " " << new_point.lon() << ")" << endl;
     cout << "D: " << distance << endl;
