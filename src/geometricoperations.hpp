@@ -85,6 +85,12 @@ public:
         return angle;
     }
 
+    double angle(osmium::Location location1, osmium::Location location2) {
+        return angle(location1.lon(), location1.lat(), location2.lon(),
+                location2.lat());
+    }
+    
+
     osmium::Location vertical_point(double lon1, double lat1, double lon2,
             double lat2, double distance, bool clockwise = true) {
 
@@ -97,11 +103,9 @@ public:
         } else {
             reverse_angle -= 90;
         }
-        cout << "rev_angle: " << reverse_angle << endl;
         osmium::Location point;
         point.set_lon(lon1 + sin(reverse_angle * TO_RAD) * delta.lon());
         point.set_lat(lat1 + cos(reverse_angle * TO_RAD) * delta.lat());
-        cout << "LOC_VERT_POINT: " << point.lon() << ", " << point.lat() << endl;
         return point;
     }
 

@@ -72,6 +72,7 @@ struct Road {
 
 
 class DataStorage {
+
     OGRSpatialReference sparef_webmercator;
     OGRCoordinateTransformation *srs_tranformation;
     OGRDataSource *data_source;
@@ -82,6 +83,8 @@ class DataStorage {
     string output_database;
     string output_filename;
     //const char *SRS = "WGS84";
+    location_handler_type &location_handler;
+    GeomOperate go;
 
     void create_table(OGRLayer *&layer, const char *name,
             OGRwkbGeometryType geometry) {
@@ -160,6 +163,29 @@ class DataStorage {
         create_field(layer_nodes, "osm_id", OFTString, 14);
     }
 
+    void order_clockwise(osmium::object_id_type node_id) {
+        osmium::Location node_location; 
+        osmium::Location last_location; 
+        int vector_size = node_map[node_id].size();
+        int mem_size = sizeof(pair<osmium::object_id_type, Road*>);
+        node_location = location_handler.get_node_location(node_id);
+        last_location = location_handler.get_node_location(node_map[node_id][vector_size - 1].first);
+
+        double angle_last = go.angle(node_location, last_location);
+        for (int i = vector_size - 1; i > 1; --i) {
+            osmium::object_id_type test_id = node_map[node_id][i - 1].first;
+            osmium::Location test_location;
+            test_location = location_handler.get_node_location(test_id);
+            double angle_test = go.angle(node_location, test_location);
+            if (angle_last < angle_test) {
+                swap(node_map[node_id][i],
+                        node_map[node_id][i-1]);
+            } else {
+                break;
+            }
+        }
+    }
+        
 //    const string get_timestamp(osmium::Timestamp timestamp) {
 //        string time_str = timestamp.to_iso();
 //        time_str.replace(10, 1, " ");
@@ -205,8 +231,10 @@ public:
 	    vector<pair<osmium::object_id_type, Road*>>> node_map;
     google::sparse_hash_set<string> finished_connections;
 
-    explicit DataStorage(string outfile) :
-            output_filename(outfile) {
+    explicit DataStorage(string outfile,
+            location_handler_type &location_handler) :
+            output_filename(outfile),
+            location_handler(location_handler) {
 
         init_db(); 
 	node_map.set_deleted_key(-1);
@@ -298,13 +326,11 @@ public:
         OGRFeature *feature;
         feature = OGRFeature::CreateFeature(layer_nodes->GetLayerDefn());
         
-        cout << "before cr_pnt" << endl;
         OGRPoint *point = ogr_factory.create_point(location).release();
         if (feature->SetGeometry(point) != OGRERR_NONE) {
             cerr << "Failed to create geometry feature for way: ";
             cerr << osm_id << endl;
         }
-        cout << "after cr_pnt" << endl;
         feature->SetField("osm_id", to_string(osm_id).c_str());
 
         if (layer_nodes->CreateFeature(feature) != OGRERR_NONE) {
@@ -321,6 +347,9 @@ public:
 		(end_node, road));
         node_map[end_node].push_back(pair<osmium::object_id_type, Road*>
 		(start_node, road));
+        if (node_map[start_node].size() > 2) {
+            order_clockwise(start_node);
+        }
     }
 };
 

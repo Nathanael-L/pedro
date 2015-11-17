@@ -150,7 +150,8 @@ public:
 	for (auto node : ds.node_map) {
             current_id = node.first;
             current_location = location_handler.get_node_location(current_id);
-	    if (node.second.size() == 1) {
+            int number_of_neighbours = node.second.size();
+	    if (number_of_neighbours == 1) {
                 next_id = node.second[0].first;
                 next_location = location_handler.get_node_location(next_id);
                 sidewalk_left = go.vertical_point(current_location, next_location, 0.003, true);
@@ -158,42 +159,53 @@ public:
                 ds.insert_node(sidewalk_left, current_id);
                 ds.insert_node(sidewalk_right, current_id);
             }
-	    if (node.second.size() == 2) {
+	    if (number_of_neighbours == 2) {
 		//for (auto neighbour_node : no.second) {
 		prev_id = node.second[0].first;
-                cout << "prev: " << prev_id << endl;
 		next_id = node.second[1].first;
-                cout << "next: " << next_id << endl;
                 prev_location = location_handler.get_node_location(prev_id);
-                cout << "1";
                 next_location = location_handler.get_node_location(next_id);
-                cout << "2";
                 osmium::Location sidewalk_left_1;
                 osmium::Location sidewalk_left_2;
                 osmium::Location sidewalk_right_1;
                 osmium::Location sidewalk_right_2;
                 sidewalk_left_1 = go.vertical_point(current_location, prev_location, 0.003, true);
-                cout << "3";
                 sidewalk_left_2 = go.vertical_point(current_location, next_location, 0.003, false);
-                cout << "4";
                 sidewalk_right_1 = go.vertical_point(current_location, prev_location, 0.003, false);
-                cout << "5";
                 sidewalk_right_2 = go.vertical_point(current_location, next_location, 0.003, true);
-                cout << "6" << endl;
                 double d_prev = go.haversine(prev_location, sidewalk_left_1);
                 double d_next = go.haversine(prev_location, sidewalk_left_2);
                 if (d_prev > d_next) {  // winkel < 180°
-                    cout << "angle<180" << endl;
                     sidewalk_left = go.mean(sidewalk_left_1, sidewalk_left_2);
                     ds.insert_node(sidewalk_left, current_id);
                     ds.insert_node(sidewalk_right_1, current_id);
                     ds.insert_node(sidewalk_right_2, current_id);
                 } else {
-                    cout << "angle>180" << endl;
                     sidewalk_right = go.mean(sidewalk_right_1, sidewalk_right_2);
                     ds.insert_node(sidewalk_left_1, current_id);
                     ds.insert_node(sidewalk_left_2, current_id);
                     ds.insert_node(sidewalk_right, current_id);
+                }
+            }
+	    if (number_of_neighbours > 2) {
+                for (int i = 0; i < (number_of_neighbours); i++) {
+		    prev_id = node.second[i].first;
+		    next_id = node.second[(i + 1) % number_of_neighbours].first;
+                    prev_location = location_handler.get_node_location(prev_id);
+                    next_location = location_handler.get_node_location(next_id);
+                    osmium::Location sidewalk_left_1;
+                    osmium::Location sidewalk_left_2;
+                    sidewalk_left_1 = go.vertical_point(current_location, prev_location, 0.003, true);
+                    sidewalk_left_2 = go.vertical_point(current_location, next_location, 0.003, false);
+                    double d_prev = go.haversine(prev_location, sidewalk_left_1);
+                    double d_next = go.haversine(prev_location, sidewalk_left_2);
+                    if (d_prev > d_next) {  // winkel < 180°
+                        sidewalk_left = go.mean(sidewalk_left_1, sidewalk_left_2);
+                        ds.insert_node(sidewalk_left, current_id);
+                    } else {
+                        ds.insert_node(sidewalk_left_1, current_id);
+                        ds.insert_node(sidewalk_left_2, current_id);
+                    }
                 }
 	    }
 	}
