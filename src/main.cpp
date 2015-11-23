@@ -39,7 +39,6 @@ typedef handler::NodeLocationsForWays<index_pos_type, index_neg_type>
 typedef geos::geom::LineString linestring_type;
 
 #include "geometricoperations.hpp"
-#include "errorsum.hpp"
 #include "tagcheck.hpp"
 #include "datastorage.hpp"
 #include "wayhandler.hpp"
@@ -97,10 +96,12 @@ int main(int argc, char* argv[]) {
     location_handler.ignore_errors();
     DataStorage ds(output_filename, location_handler);
     
+    cerr << "start reading osm ..." << endl;
     io::Reader reader(input_filename);
     WayHandler way_handler(ds, location_handler);
     apply(reader, location_handler, way_handler);
     reader.close();
+    cerr << "!" << endl;
 
     /*
     for (auto node : ds.node_map) {
@@ -112,19 +113,23 @@ int main(int argc, char* argv[]) {
     */
 
 
+    cerr << "insert osm footways in postgres ...";
     ds.insert_ways();
+    cerr << "!" << endl;
+    cerr << "generate sidewalks ...";
     way_handler.generate_sidewalks();
-    cout << "node_map size: " << ds.node_map.size() << endl;
-    cout << "finished_connections size: " << ds.finished_connections.size() << endl;
+    cerr << "!" << endl;
+    cerr << "node_map size: " << ds.node_map.size() << endl;
+    cerr << "finished_connections size: " << ds.finished_connections.size() << endl;
     ds.insert_vhcl();
 
-    cout << "ready" << endl;
+    cerr << "ready" << endl;
 
     /*** TEST GEOM OPERATOR ***
     GeomOperate go;
     Location A, B;
-    A.set_lon(68.2); A.set_lat(9.18);
-    B.set_lon(68.0); B.set_lat(9.2);
+    A.set_lon(78.9); A.set_lat(9.2);
+    B.set_lon(78.0); B.set_lat(9.0);
     Location delta = go.inverse_haversine(A.lon(), A.lat(), 20);
     //cout << "dlon: " << delta.lon << " dlat: " << delta.lat << endl;
     Location new_point;

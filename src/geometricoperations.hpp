@@ -16,6 +16,16 @@
 
 using namespace std;
 
+struct LonLat {
+    double lon;
+    double lat;
+
+    LonLat(double longitude, double latitude) {
+        lon = longitude;
+        lat = latitude;
+    }
+};
+
 class GeomOperate {
 
     const int EARTH_RADIUS = 6371;
@@ -59,29 +69,43 @@ public:
 
     //inverse haversine from http://stackoverflow.com/questions/3182260/python-geocode-filtering-by-distance
 
-    Location inverse_haversine(double lon, double lat,
+    LonLat inverse_haversine(double lon, double lat,
             double distance) {
 
         double dlon;
         double dlat;
-        dlon = distance / EARTH_RADIUS;
-        dlat = asin(sin(dlon) / cos(lon * TO_RAD));
-        Location max_location;
-        max_location.set_lon(dlon * TO_DEG);
-        max_location.set_lat(dlat * TO_DEG);
-        return max_location;
+        dlat = distance / EARTH_RADIUS;
+        dlon = asin(sin(dlat) / cos(lat * TO_RAD));
+        LonLat max_lonlat(dlon * TO_DEG, dlat * TO_DEG);
+        return max_lonlat;
+    }
+
+    double difference(double d1, double d2) {
+        return (max(d1, d2) - min (d1, d2));
     }
 
     double orientation(double lon1, double lat1, double lon2,
             double lat2) {
 
-        double dlon = lon2 - lon1;
-        double dlat = lat2 - lat1;
+        double dlon = difference(lon1, lon2);
+        double dlat = difference(lat1, lat2);
         double orientation = atan(dlon / dlat) * TO_DEG;
-        if (dlat < 0) {
-            orientation += 180;
-        } else if (dlon < 0) {
-            orientation += 360;
+        if (lat1 < lat2) {
+            if (lon1 > lon2) {
+                /* 2. Quadrant */
+                orientation = 180 - orientation;
+            } else {
+                /* 3. Quadrant */
+                orientation += 180;
+            }
+        } else {
+            if (lon1 < lon2) {
+                /* 4. Quadrant */
+                orientation = 360 - orientation;
+            } else {
+                /* 1. Quadrant */
+                /* nothing     */
+            }
         }
         return orientation;
     }
@@ -91,13 +115,14 @@ public:
                 location2.lat());
     }
 
-    double angle(Location left, Location middle, Location right) {
-        double gamma = orientation(middle, left) - orientation(middle, right);
-        if (gamma < 0) {
-            gamma += 360;
+    double angle(Location first, Location middle, Location second) {
+        double orientation1 = orientation(middle, second);
+        double orientation2 = orientation(middle, first);
+        double alpha = orientation1 - orientation2;
+        if (alpha < 0 ) {
+            alpha += 360;
         }
-        cout << "gamma: " << gamma << endl;
-        return gamma;
+        return alpha;
     }
 
     /** angle using law of cosinus
@@ -111,31 +136,35 @@ public:
     */
 
     Location vertical_point(double lon1, double lat1, double lon2,
-            double lat2, double distance, bool clockwise = true) {
+            double lat2, double distance, bool left = true) {
 
-        Location delta;
-        delta = inverse_haversine(lon1, lat1, distance);
+        cout << "start:" << lon1 << " " << lat1 << ", " << lon2 << " " << lat2 << endl;
+        LonLat delta = inverse_haversine(lon1, lat1, distance);
         double reverse_orientation;
         reverse_orientation = orientation(lon1, lat1, lon2, lat2);
-        if (clockwise) {
-            reverse_orientation += 90;
-        } else {
+        if (left) {
             reverse_orientation -= 90;
+        } else {
+            reverse_orientation += 90;
         }
         Location point;
-        point.set_lon(lon1 + sin(reverse_orientation * TO_RAD) * delta.lon());
-        point.set_lat(lat1 + cos(reverse_orientation * TO_RAD) * delta.lat());
+        double new_lon = lon1 + sin(reverse_orientation * TO_RAD) * delta.lon;
+        double new_lat = lat1 + cos(reverse_orientation * TO_RAD) * delta.lat;
+        cout << "LON: " << new_lon << " LAT: " << new_lat << endl;
+        point.set_lon(new_lon);
+        point.set_lat(new_lat);
+        cout << "endOfVP" << endl;
         return point;
     }
 
     Location vertical_point(Location start_location,
             Location end_location, double distance,
-            bool clockwise = true) {
+            bool left = true) {
 
         Location point;
         point = vertical_point(start_location.lon(), start_location.lat(),
                 end_location.lon(), end_location.lat(), distance,
-                clockwise);
+                left);
 	    return point;
     }
 

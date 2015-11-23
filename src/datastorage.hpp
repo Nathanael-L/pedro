@@ -162,6 +162,9 @@ class DataStorage {
 
         create_table(layer_nodes, "nodes", wkbPoint);
         create_field(layer_nodes, "osm_id", OFTString, 14);
+        create_field(layer_nodes, "orientations", OFTString, 7);
+        create_field(layer_nodes, "angle", OFTReal, 10);
+        //test what 4th parameter does
 
         create_table(layer_sidewalks, "sidewalks", wkbLineString);
     }
@@ -170,19 +173,18 @@ class DataStorage {
         Location node_location; 
         Location last_location; 
         int vector_size = node_map[node_id].size();
-        int mem_size = sizeof(pair<object_id_type, Road*>);
         node_location = location_handler.get_node_location(node_id);
-        last_location = location_handler.get_node_location(node_map[node_id][vector_size - 1].first);
+        last_location = location_handler.get_node_location(
+                node_map[node_id][vector_size - 1].first);
 
         double angle_last = go.orientation(node_location, last_location);
-        for (int i = vector_size - 1; i > 1; --i) {
+        for (int i = vector_size - 1; i > 0; --i) {
             object_id_type test_id = node_map[node_id][i - 1].first;
             Location test_location;
             test_location = location_handler.get_node_location(test_id);
             double angle_test = go.orientation(node_location, test_location);
             if (angle_last < angle_test) {
-                swap(node_map[node_id][i],
-                        node_map[node_id][i-1]);
+                swap(node_map[node_id][i], node_map[node_id][i-1]);
             } else {
                 break;
             }
@@ -248,6 +250,9 @@ public:
 
     ~DataStorage() {
         layer_ways->CommitTransaction();
+        layer_nodes->CommitTransaction();
+        layer_vhcl->CommitTransaction();
+        layer_sidewalks->CommitTransaction();
 
         OGRDataSource::DestroyDataSource(data_source);
         OGRCleanupAll();
@@ -325,7 +330,8 @@ public:
         }
     }
 
-    void insert_node(Location location, object_id_type osm_id) {
+    void insert_node(Location location, object_id_type osm_id,
+        const char *ori, double angle) {
         OGRFeature *feature;
         feature = OGRFeature::CreateFeature(layer_nodes->GetLayerDefn());
         
@@ -335,6 +341,8 @@ public:
             cerr << osm_id << endl;
         }
         feature->SetField("osm_id", to_string(osm_id).c_str());
+        feature->SetField("orientations", ori);
+        feature->SetField("angle", angle);
 
         if (layer_nodes->CreateFeature(feature) != OGRERR_NONE) {
             cerr << "Failed to create ways feature." << endl;

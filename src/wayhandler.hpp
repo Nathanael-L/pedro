@@ -26,8 +26,9 @@ class WayHandler : public handler::Handler {
     location_handler_type &location_handler;
     GeomOperate go;
     geom::OGRFactory<> ogr_factory;
-    bool left = true;
-    bool right = false;
+    const bool left = true;
+    const bool right = false;
+    bool is_first_way = true;
 
     Road *get_road(Way &way, bool is_pedestrian) {
         OGRLineString *linestring = nullptr;
@@ -129,6 +130,9 @@ public:
     }
 
     void way(Way &way) {
+        if (is_first_way) {
+            cerr << "... handle ways ..." << endl;
+        }
         if (TagCheck::is_highway(way)) {
             if (TagCheck::is_pedestrian(way)) {
                 handle_pedestrian_road(way);
@@ -137,6 +141,7 @@ public:
                 handle_vehicle_road(way);
             }
         }
+        is_first_way = false;
     }
 
     void construct_sidewalks(object_id_type current,
@@ -148,8 +153,10 @@ public:
         neighbour_location = location_handler.get_node_location(neighbour);
         OGRGeometry *left_sidewalk = nullptr;
         OGRGeometry *right_sidewalk = nullptr;
-        left_sidewalk = go.parallel_line(current_location, neighbour_location, 0.003, left);
-        right_sidewalk = go.parallel_line(current_location, neighbour_location, 0.003, right);
+        left_sidewalk = go.parallel_line(current_location, neighbour_location,
+                0.003, right);
+        right_sidewalk = go.parallel_line(current_location, neighbour_location,
+                0.003, left);
         ds.insert_sidewalk(left_sidewalk);
         ds.insert_sidewalk(right_sidewalk);
     }
@@ -159,25 +166,37 @@ public:
             object_id_type neighbour) {
         
         Location current_location;
-        Location neighbour_location;
+        Location next_location;
         Location prev_location;
         Location vertical_point1;
         Location vertical_point2;
         OGRGeometry *convex_segment;
         current_location = location_handler.get_node_location(current);
-        neighbour_location = location_handler.get_node_location(neighbour);
+        next_location = location_handler.get_node_location(neighbour);
         prev_location = location_handler.get_node_location(prev_neighbour);
         double angle;
-        angle = go.angle(prev_location, current_location, neighbour_location);
+        angle = go.angle(prev_location, current_location, next_location);
         if (angle > 180) {
-            vertical_point1 = go.vertical_point(current_location, prev_location, 0.003, right);
-            vertical_point2 = go.vertical_point(current_location, neighbour_location, 0.003, left);
-        } else {
-            vertical_point1 = go.vertical_point(current_location, prev_location, 0.003, left);
-            vertical_point2 = go.vertical_point(current_location, neighbour_location, 0.003, right);
+            vertical_point1 = go.vertical_point(current_location, prev_location,
+                    0.003, left);
+            vertical_point2 = go.vertical_point(current_location,
+                    next_location, 0.003, right);
+        /* else {
+            vertical_point1 = go.vertical_point(current_location, prev_location,
+                    0.003, right);
+            vertical_point2 = go.vertical_point(current_location, next_location,
+                    0.003, left);
+        }*/
+            convex_segment = go.connect_locations(vertical_point1,
+                    vertical_point2);
+            ds.insert_sidewalk(convex_segment);
+            string ori = to_string(static_cast<int>(ceil(go.orientation(current_location, prev_location)))) + to_string(static_cast<int>(ceil(go.orientation(current_location, next_location))));
+            ds.insert_node(current_location, current, ori.c_str(), angle);
         }
-        convex_segment = go.connect_locations(vertical_point1, vertical_point2);
-        ds.insert_sidewalk(convex_segment);
+        
+        
+        
+        /**/
     }
 
     void generate_sidewalks() {
@@ -186,84 +205,24 @@ public:
         object_id_type prev_neighbour;
 
         for (auto node : ds.node_map) {
+            if (node.first == 1763864221) {
+
+
+            }
             current = node.first;
             int count_neighbours = node.second.size();
-            for (int i = 0; i < (count_neighbours); i++) {
+            for (int i = 0; i < (count_neighbours); ++i) {
                 neighbour = node.second[i].first;
+                int prev_index = (i - 1 + count_neighbours) % count_neighbours;
+                prev_neighbour = node.second[prev_index].first; 
+                
                 if (!is_constructed(current, neighbour)) {
                     construct_sidewalks(current, neighbour);
-                } else {
-                if ((i > 0) && (i < (count_neighbours))) {
-                    prev_neighbour = node.second[i-1].first; 
-                    construct_convex_segment(current, prev_neighbour, neighbour); 
                 }
+                construct_convex_segment(current, prev_neighbour, neighbour); 
             }
         }
     }
-
-            
-
-
-//	    if (number_of_neighbours == 1) {
-//                next_id = node.second[0].first;
-//                next_location = location_handler.get_node_location(next_id);
-//                sidewalk_left = go.vertical_point(current_location, next_location, 0.003, true);
-//                sidewalk_right = go.vertical_point(current_location, next_location, 0.003, false);
-//                ds.insert_node(sidewalk_left, current_id);
-//                ds.insert_node(sidewalk_right, current_id);
-//            }
-//	    if (number_of_neighbours == 2) {
-//		//for (auto neighbour_node : no.second) {
-//		prev_id = node.second[0].first;
-//		next_id = node.second[1].first;
-//                prev_location = location_handler.get_node_location(prev_id);
-//                next_location = location_handler.get_node_location(next_id);
-//                Location sidewalk_left_1;
-//                Location sidewalk_left_2;
-//                Location sidewalk_right_1;
-//                Location sidewalk_right_2;
-//                sidewalk_left_1 = go.vertical_point(current_location, prev_location, 0.003, true);
-//                sidewalk_left_2 = go.vertical_point(current_location, next_location, 0.003, false);
-//                sidewalk_right_1 = go.vertical_point(current_location, prev_location, 0.003, false);
-//                sidewalk_right_2 = go.vertical_point(current_location, next_location, 0.003, true);
-//                double d_prev = go.haversine(prev_location, sidewalk_left_1);
-//                double d_next = go.haversine(prev_location, sidewalk_left_2);
-//                if (d_prev > d_next) {  // winkel < 180°
-//                    sidewalk_left = go.mean(sidewalk_left_1, sidewalk_left_2);
-//                    ds.insert_node(sidewalk_left, current_id);
-//                    ds.insert_node(sidewalk_right_1, current_id);
-//                    ds.insert_node(sidewalk_right_2, current_id);
-//                } else {
-//                    sidewalk_right = go.mean(sidewalk_right_1, sidewalk_right_2);
-//                    ds.insert_node(sidewalk_left_1, current_id);
-//                    ds.insert_node(sidewalk_left_2, current_id);
-//                    ds.insert_node(sidewalk_right, current_id);
-//                }
-//            }
-//	    if (number_of_neighbours > 2) {
-//                for (int i = 0; i < (number_of_neighbours); i++) {
-//		    prev_id = node.second[i].first;
-//		    next_id = node.second[(i + 1) % number_of_neighbours].first;
-//                    prev_location = location_handler.get_node_location(prev_id);
-//                    next_location = location_handler.get_node_location(next_id);
-//                    Location sidewalk_left_1;
-//                    Location sidewalk_left_2;
-//                    sidewalk_left_1 = go.vertical_point(current_location, prev_location, 0.003, true);
-//                    sidewalk_left_2 = go.vertical_point(current_location, next_location, 0.003, false);
-//                    double d_prev = go.haversine(prev_location, sidewalk_left_1);
-//                    double d_next = go.haversine(prev_location, sidewalk_left_2);
-//                    if (d_prev > d_next) {  // winkel < 180°
-//                        sidewalk_left = go.mean(sidewalk_left_1, sidewalk_left_2);
-//                        ds.insert_node(sidewalk_left, current_id);
-//                    } else {
-//                        ds.insert_node(sidewalk_left_1, current_id);
-//                        ds.insert_node(sidewalk_left_2, current_id);
-//                    }
-//                }
-//	    }
-//	}
-    }
-
 };
                 /*if (is_connection_finished(current_id, next_id)) {
                     continue;
