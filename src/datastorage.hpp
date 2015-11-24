@@ -80,6 +80,7 @@ class DataStorage {
     OGRLayer *layer_vhcl;
     OGRLayer *layer_nodes;
     OGRLayer *layer_sidewalks;
+    OGRLayer *layer_intersects;
     geom::OGRFactory<> ogr_factory;
     string output_database;
     string output_filename;
@@ -166,7 +167,10 @@ class DataStorage {
         create_field(layer_nodes, "angle", OFTReal, 10);
         //test what 4th parameter does
 
-        create_table(layer_sidewalks, "sidewalks", wkbLineString);
+        create_table(layer_intersects, "intersects", wkbPoint);
+        create_field(layer_intersects, "roads", OFTString, 50);
+
+        create_table(layer_sidewalks, "sidewalks", wkbMultiLineString);
     }
 
     void order_clockwise(object_id_type node_id) {
@@ -235,6 +239,11 @@ public:
     google::sparse_hash_map<object_id_type,
 	    vector<pair<object_id_type, Road*>>> node_map;
     google::sparse_hash_set<string> finished_connections;
+    vector<geos::geom::Geometry*> *sidewalks;
+    vector<geos::geom::Geometry*> *vhcl_roads;
+    geos::geom::Geometry *geos_sidewalk_net;
+    geos::geom::Geometry *geos_vhcl_net;
+    geos::geom::GeometryFactory geos_factory;
 
     explicit DataStorage(string outfile,
             location_handler_type &location_handler) :
@@ -246,6 +255,8 @@ public:
 	finished_connections.set_deleted_key("");
         vehicle_road_set.set_deleted_key(nullptr);
         pedestrian_road_set.set_deleted_key(nullptr);
+        sidewalks = new vector<geos::geom::Geometry*>();
+        vhcl_roads = new vector<geos::geom::Geometry*>();
     }
 
     ~DataStorage() {
@@ -253,6 +264,7 @@ public:
         layer_nodes->CommitTransaction();
         layer_vhcl->CommitTransaction();
         layer_sidewalks->CommitTransaction();
+        layer_intersects->CommitTransaction();
 
         OGRDataSource::DestroyDataSource(data_source);
         OGRCleanupAll();
@@ -274,6 +286,7 @@ public:
         Road *vehicle_road = new Road(name, geometry, sidewalk,
                 type, lanes, length, osm_id);
         vehicle_road_set.insert(vehicle_road);
+        
 	return vehicle_road;
     }
 
@@ -330,6 +343,22 @@ public:
         }
     }
 
+    void insert_intersect(Location location, const char *roadnames) {
+        OGRFeature *feature;
+        feature = OGRFeature::CreateFeature(layer_intersects->GetLayerDefn());
+        
+        OGRPoint *point = ogr_factory.create_point(location).release();
+        if (feature->SetGeometry(point) != OGRERR_NONE) {
+            cerr << "Failed to create geometry feature for intersects: ";
+        }
+        feature->SetField("roads", roadnames);
+
+        if (layer_intersects->CreateFeature(feature) != OGRERR_NONE) {
+            cerr << "Failed to create ways feature." << endl;
+        }
+        OGRFeature::DestroyFeature(feature);
+    }
+
     void insert_node(Location location, object_id_type osm_id,
         const char *ori, double angle) {
         OGRFeature *feature;
@@ -350,14 +379,20 @@ public:
         OGRFeature::DestroyFeature(feature);
     }
     
+    void union_sidewalks() { 
+        geos_sidewalk_net = go.union_geometries(sidewalks);
+    }
+
+    void union_vhcl_roads() {
+        geos_vhcl_net = go.union_geometries(vhcl_roads);
+    }
+
     void insert_sidewalk(OGRGeometry *sidewalk) {
         OGRFeature *feature;
         feature = OGRFeature::CreateFeature(layer_sidewalks->GetLayerDefn());
-
         if (feature->SetGeometry(sidewalk) != OGRERR_NONE) {
             cerr << "Failed to create geometry feature for sidewalk.";
         }
-
         if (layer_sidewalks->CreateFeature(feature) != OGRERR_NONE) {
             cerr << "Failed to create ways feature." << endl;
         }

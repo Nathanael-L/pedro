@@ -34,6 +34,7 @@ class GeomOperate {
     OGRSpatialReference sparef_wgs84;
     OGRGeometryFactory ogr_factory;
     geos::geom::GeometryFactory geos_factory;
+    geos::io::WKTReader geos_wkt_reader;
     GEOSContextHandle_t hGEOSCtxt;
 
 
@@ -42,6 +43,7 @@ public:
     GeomOperate() {
         sparef_wgs84.SetWellKnownGeogCS("WGS84");
         hGEOSCtxt = OGRGeometry::createGEOSContext();
+        geos_wkt_reader = geos::io::WKTReader(geos_factory);
     }
 
     //from http://rosettacode.org/wiki/Haversine_formula#C
@@ -125,16 +127,6 @@ public:
         return alpha;
     }
 
-    /** angle using law of cosinus
-    double angle(Location left, Location middle, Location right) {
-        double a = haversine(left, middle);
-        double b = haversine(right, middle);
-        double c = haversine(left, right);
-        double gamma = acos((a * a + b * b - c * c) / (2 * a * b));
-        return gamma * TO_DEG;
-    }
-    */
-
     Location vertical_point(double lon1, double lat1, double lon2,
             double lat2, double distance, bool left = true) {
 
@@ -165,7 +157,36 @@ public:
 	    return point;
     }
 
-    OGRGeometry *connect_locations(Location location1, Location location2) {
+    geos::geom::Geometry *connect_locations(Location location1, Location location2) {
+        geos::geom::Geometry *geos_line = nullptr;
+        string target_wkt = "LINESTRING (";
+        target_wkt += to_string(location1.lon()) + " ";
+        target_wkt += to_string(location1.lat()) + ", ";
+        target_wkt += to_string(location2.lon()) + " ";
+        target_wkt += to_string(location2.lat()) + ")";
+        const string wkt = target_wkt;
+        geos_line = geos_wkt_reader.read(wkt);
+        
+        if (!geos_line) {
+            cerr << "Failed to create from wkt.";
+            exit(1);
+        }
+        return geos_line;
+    }
+
+    geos::geom::Geometry *parallel_line(Location location1,
+            Location location2, double distance, bool left = true) {
+
+        geos::geom::Geometry *geos_line = nullptr;
+        Location start;
+        Location end;
+        start = vertical_point(location1, location2, distance, left);
+        end = vertical_point(location2, location1, distance, !left);
+        geos_line = connect_locations(start, end);
+        return geos_line;
+    }
+
+    OGRGeometry *ogr_connect_locations(Location location1, Location location2) {
         OGRGeometry *ogr_line = nullptr;
         string target_wkt = "LINESTRING (";
         target_wkt += to_string(location1.lon()) + " ";
@@ -180,7 +201,7 @@ public:
         return ogr_line;
     }
 
-    OGRGeometry *parallel_line(Location location1,
+    OGRGeometry *ogr_parallel_line(Location location1,
             Location location2, double distance, bool left = true) {
 
         OGRGeometry *ogr_line = nullptr;
@@ -188,10 +209,32 @@ public:
         Location end;
         start = vertical_point(location1, location2, distance, left);
         end = vertical_point(location2, location1, distance, !left);
-        ogr_line = connect_locations(start, end);
+        ogr_line = ogr_connect_locations(start, end);
         return ogr_line;
     }
 
+    geos::geom::Geometry *union_geometries(vector<geos::geom::Geometry*>
+                *geom_vector) { 
+        
+        geos::geom::GeometryCollection *geom_collection = nullptr;
+        geos::geom::Geometry *result = nullptr;
+        try {
+            geom_collection = geos_factory.createGeometryCollection(
+                    geom_vector);
+        } catch (...) {
+            cerr << "Failed to create geometry collection." << endl;
+            exit(1);
+        }
+        try {
+            result = geom_collection->Union().release();
+        } catch (...) {
+            cerr << "Failed to union linestrings at relation: " << endl;
+            delete geom_collection;
+            exit(1);
+        }
+        delete geom_collection;
+        return result;
+    }
 
     Location mean(Location location1,
             Location location2) {
@@ -202,6 +245,55 @@ public:
         return location;
     }
 
+    OGRGeometry *ogr2geos(OGRGeometry *ogr_geom)
+    {
+        geos::geom::Geometry *geos_geom;
+
+        ostream *os;
+        string wkb = os.str();
+        if (ogr_geom->exportToWkb(wkbXDR, (unsigned char *) wkb.c_str())
+                != OGRERR_NONE ) {
+            geos_geom = nullptr;
+            assert(false);
+        }
+        geos::io::WKBReader wkbReader;
+        
+        //wkbWriter.setOutputDimension(g->getCoordinateDimension());
+        geos_geom = wkbReader.read(os);
+        return geos_geom;
+    }
+
+    OGRGeometry *geos2ogr(const geos::geom::Geometry *g)
+    {
+        OGRGeometry *ogr_geom;
+
+        geos::io::WKBWriter wkbWriter;
+        wkbWriter.setOutputDimension(g->getCoordinateDimension());
+        ostringstream ss;
+        wkbWriter.write(*g, ss);
+        string wkb = ss.str();
+        if (OGRGeometryFactory::createFromWkb((unsigned char *) wkb.c_str(),
+                                              nullptr, &ogr_geom, wkb.size())
+            != OGRERR_NONE ) {
+            ogr_geom = nullptr;
+            assert(false);
+        }
+        return ogr_geom;
+    }
 };
 
 #endif /* GEOMETRICOPERATIONS_HPP_ */
+
+
+
+
+    /** angle using law of cosinus
+    double angle(Location left, Location middle, Location right) {
+        double a = haversine(left, middle);
+        double b = haversine(right, middle);
+        double c = haversine(left, right);
+        double gamma = acos((a * a + b * b - c * c) / (2 * a * b));
+        return gamma * TO_DEG;
+    }
+    */
+

@@ -24,6 +24,8 @@
 #include <geos/geom/GeometryFactory.h>
 #include <geos/index/strtree/STRtree.h>
 #include <geos/io/WKBWriter.h>
+#include <geos/io/WKBReader.h>
+#include <geos/io/WKTReader.h>
 #include <google/sparse_hash_set>
 #include <google/sparse_hash_map>
 
@@ -112,32 +114,35 @@ int main(int argc, char* argv[]) {
     }
     */
 
-/*
     cerr << "insert osm footways in postgres ...";
-    ds.insert_ways();
+    //ds.insert_ways();
     cerr << "!" << endl;
     cerr << "generate sidewalks ...";
     way_handler.generate_sidewalks();
+
     cerr << "!" << endl;
+    ds.union_sidewalks();
     cerr << "node_map size: " << ds.node_map.size() << endl;
     cerr << "finished_connections size: " << ds.finished_connections.size() << endl;
-    ds.insert_vhcl();
+    //ds.insert_vhcl();
+    GeomOperate go;
+    OGRGeometry *ogr_sidewalk_net = nullptr;
+    ogr_sidewalk_net = go.geos2ogr(ds.geos_sidewalk_net);
+    ds.insert_sidewalk(ogr_sidewalk_net);
 
     cerr << "ready" << endl;
 
-    *** TEST GEOM OPERATOR ***/
+    /*** TEST GEOM OPERATOR ***
     GeomOperate go;
-    Location A, B;
-    A.set_lon(58.9); A.set_lat(9.2);
-    B.set_lon(58.0); B.set_lat(9.0);
-    LonLat delta = go.inverse_haversine(A.lon(), A.lat(), 20);
-    //cout << "dlon: " << delta.lon << " dlat: " << delta.lat << endl;
-    Location new_point;
-    new_point = go.vertical_point(B.lon(), B.lat(), A.lon(), A.lat(), 20);
-    double distance;
-    distance = go.haversine(A.lon(), A.lat(), new_point.lon(), new_point.lat());
-    cout << "LINESTRING (" << A.lat() << " " << A.lon() << ", " << B.lat() << " " << B.lon() << ")" << endl;
-    cout << "LINESTRING (" << B.lat() << " " << B.lon() << ", " << new_point.lat() << " " << new_point.lon() << ")" << endl;
-    cout << "D: " << distance << endl;
-    /***/
+    Location A, B, C;
+    for (double i=4; i<9; ++i) {
+        A.set_lon(i * 11 + 0.007 * i); A.set_lat(9.0 + 0.008 * (i-1));
+        B.set_lon(i * 11 + 0.01 * (i - 2)); B.set_lat(9.0 + 0.0067 * i);
+        C = go.vertical_point(B.lon(), B.lat(), A.lon(), A.lat(), 1);
+        cout << "LINESTRING (" << A.lat() << " " << A.lon() << ", " << B.lat()
+                << " " << B.lon() << ")" << endl;
+        cout << "LINESTRING (" << B.lat() << " " << B.lon() << ", " << C.lat()
+                << " " << C.lon() << ")" << endl;
+    }
+    ***/
 }

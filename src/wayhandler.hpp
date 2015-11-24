@@ -151,14 +151,15 @@ public:
         Location neighbour_location;
         current_location = location_handler.get_node_location(current);
         neighbour_location = location_handler.get_node_location(neighbour);
-        OGRGeometry *left_sidewalk = nullptr;
-        OGRGeometry *right_sidewalk = nullptr;
+        geos::geom::Geometry *left_sidewalk = nullptr;
+
         left_sidewalk = go.parallel_line(current_location, neighbour_location,
                 0.003, right);
         //right_sidewalk = go.parallel_line(current_location, neighbour_location,
         //        0.003, left);
-        ds.insert_sidewalk(left_sidewalk);
+        //ds.insert_sidewalk(left_sidewalk);
         //ds.insert_sidewalk(right_sidewalk);
+        ds.sidewalks->push_back(left_sidewalk);
     }
 
     void construct_convex_segment(object_id_type current,
@@ -170,13 +171,13 @@ public:
         Location prev_location;
         Location vertical_point1;
         Location vertical_point2;
-        OGRGeometry *convex_segment;
+        geos::geom::Geometry *convex_segment;
         current_location = location_handler.get_node_location(current);
         next_location = location_handler.get_node_location(neighbour);
         prev_location = location_handler.get_node_location(prev_neighbour);
         double angle;
         angle = go.angle(prev_location, current_location, next_location);
-        if (angle > 180) {
+        //if (angle > 180) {
             vertical_point1 = go.vertical_point(current_location, prev_location,
                     0.003, left);
             vertical_point2 = go.vertical_point(current_location,
@@ -189,10 +190,11 @@ public:
         }*/
             convex_segment = go.connect_locations(vertical_point1,
                     vertical_point2);
-            ds.insert_sidewalk(convex_segment);
+            ds.sidewalks->push_back(convex_segment);
+            //ds.insert_sidewalk(convex_segment);
             string ori = to_string(static_cast<int>(ceil(go.orientation(current_location, prev_location)))) + to_string(static_cast<int>(ceil(go.orientation(current_location, next_location))));
             //ds.insert_node(current_location, current, ori.c_str(), angle);
-        }
+        //}
         
         
         
