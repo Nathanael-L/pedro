@@ -155,10 +155,10 @@ public:
         OGRGeometry *right_sidewalk = nullptr;
         left_sidewalk = go.parallel_line(current_location, neighbour_location,
                 0.003, right);
-        right_sidewalk = go.parallel_line(current_location, neighbour_location,
-                0.003, left);
+        //right_sidewalk = go.parallel_line(current_location, neighbour_location,
+        //        0.003, left);
         ds.insert_sidewalk(left_sidewalk);
-        ds.insert_sidewalk(right_sidewalk);
+        //ds.insert_sidewalk(right_sidewalk);
     }
 
     void construct_convex_segment(object_id_type current,
@@ -191,7 +191,7 @@ public:
                     vertical_point2);
             ds.insert_sidewalk(convex_segment);
             string ori = to_string(static_cast<int>(ceil(go.orientation(current_location, prev_location)))) + to_string(static_cast<int>(ceil(go.orientation(current_location, next_location))));
-            ds.insert_node(current_location, current, ori.c_str(), angle);
+            //ds.insert_node(current_location, current, ori.c_str(), angle);
         }
         
         
@@ -216,9 +216,9 @@ public:
                 int prev_index = (i - 1 + count_neighbours) % count_neighbours;
                 prev_neighbour = node.second[prev_index].first; 
                 
-                if (!is_constructed(current, neighbour)) {
+                //if (!is_constructed(current, neighbour)) {
                     construct_sidewalks(current, neighbour);
-                }
+                //}
                 construct_convex_segment(current, prev_neighbour, neighbour); 
             }
         }

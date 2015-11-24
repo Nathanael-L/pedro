@@ -89,7 +89,7 @@ public:
 
         double dlon = difference(lon1, lon2);
         double dlat = difference(lat1, lat2);
-        double orientation = atan(dlon / dlat) * TO_DEG;
+        double orientation = atan(dlon / (dlat/* sin(lat1 * TO_RAD)*/)) * TO_DEG;
         if (lat1 < lat2) {
             if (lon1 > lon2) {
                 /* 2. Quadrant */
@@ -138,7 +138,6 @@ public:
     Location vertical_point(double lon1, double lat1, double lon2,
             double lat2, double distance, bool left = true) {
 
-        cout << "start:" << lon1 << " " << lat1 << ", " << lon2 << " " << lat2 << endl;
         LonLat delta = inverse_haversine(lon1, lat1, distance);
         double reverse_orientation;
         reverse_orientation = orientation(lon1, lat1, lon2, lat2);
@@ -150,10 +149,8 @@ public:
         Location point;
         double new_lon = lon1 + sin(reverse_orientation * TO_RAD) * delta.lon;
         double new_lat = lat1 + cos(reverse_orientation * TO_RAD) * delta.lat;
-        cout << "LON: " << new_lon << " LAT: " << new_lat << endl;
         point.set_lon(new_lon);
         point.set_lat(new_lat);
-        cout << "endOfVP" << endl;
         return point;
     }
 

@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
     }
     */
 
-
+/*
     cerr << "insert osm footways in postgres ...";
     ds.insert_ways();
     cerr << "!" << endl;
@@ -125,12 +125,12 @@ int main(int argc, char* argv[]) {
 
     cerr << "ready" << endl;
 
-    /*** TEST GEOM OPERATOR ***
+    *** TEST GEOM OPERATOR ***/
     GeomOperate go;
     Location A, B;
-    A.set_lon(78.9); A.set_lat(9.2);
-    B.set_lon(78.0); B.set_lat(9.0);
-    Location delta = go.inverse_haversine(A.lon(), A.lat(), 20);
+    A.set_lon(58.9); A.set_lat(9.2);
+    B.set_lon(58.0); B.set_lat(9.0);
+    LonLat delta = go.inverse_haversine(A.lon(), A.lat(), 20);
     //cout << "dlon: " << delta.lon << " dlat: " << delta.lat << endl;
     Location new_point;
     new_point = go.vertical_point(B.lon(), B.lat(), A.lon(), A.lat(), 20);
@@ -139,5 +139,5 @@ int main(int argc, char* argv[]) {
     cout << "LINESTRING (" << A.lat() << " " << A.lon() << ", " << B.lat() << " " << B.lon() << ")" << endl;
     cout << "LINESTRING (" << B.lat() << " " << B.lon() << ", " << new_point.lat() << " " << new_point.lon() << ")" << endl;
     cout << "D: " << distance << endl;
-    ***/
+    /***/
 }
