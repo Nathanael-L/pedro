@@ -245,12 +245,12 @@ public:
         return location;
     }
 
-    OGRGeometry *ogr2geos(OGRGeometry *ogr_geom)
+    /*geos::geom::Geometry *ogr2geos(OGRGeometry *ogr_geom)
     {
         geos::geom::Geometry *geos_geom;
 
-        ostream *os;
-        string wkb = os.str();
+        istream is;
+        string wkb = is.str();
         if (ogr_geom->exportToWkb(wkbXDR, (unsigned char *) wkb.c_str())
                 != OGRERR_NONE ) {
             geos_geom = nullptr;
@@ -259,9 +259,9 @@ public:
         geos::io::WKBReader wkbReader;
         
         //wkbWriter.setOutputDimension(g->getCoordinateDimension());
-        geos_geom = wkbReader.read(os);
+        geos_geom = wkbReader.read(is);
         return geos_geom;
-    }
+    }*/
 
     OGRGeometry *geos2ogr(const geos::geom::Geometry *g)
     {

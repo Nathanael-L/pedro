@@ -15,73 +15,18 @@
 
 using namespace std;
 
-/***
- * Structure to remember the pedestrian and vehicle used roads to create
- * sidewalks and crossings.
- *
- * length is in kilometers (pgRouting-style)
- *
- * Sidewalk Characters are:
- *  'l' = left
- *  'r' = right
- *  'n' = none
- * length is in kilometers (pgRouting-style)
- *
- */
-
-struct Road {
-    string name;
-    OGRGeometry *geometry;
-    char sidewalk;
-    string type;
-    int lanes;
-    double length;
-    string osm_id;
-
-    Road(string name, OGRGeometry *geometry,
-            string type, double length, string osm_id) {
-
-        this->name = name;
-	if (!geometry) {
-	    cerr << "bad reference for geometry" << endl;
-	    exit(1);
-	}
-        this->geometry = geometry;
-        this->type = type;
-        this->length = length;
-        this->osm_id = osm_id;
-    }
-
-    Road(string name, OGRGeometry *geometry,
-            char sidewalk, string type, int lanes,
-            double length, string osm_id) {
-
-        this->name = name;
-	if (!geometry) {
-	    cerr << "bad reference for geometry" << endl;
-	    exit(1);
-	}
-        this->geometry = geometry;
-        this->sidewalk = sidewalk;
-        this->type = type;
-        this->lanes = lanes;
-        this->length = length;
-        this->osm_id = osm_id;
-    }
-};
-
-
 class DataStorage {
 
     OGRSpatialReference sparef_webmercator;
     OGRCoordinateTransformation *srs_tranformation;
     OGRDataSource *data_source;
     OGRLayer *layer_ways;
-    OGRLayer *layer_vhcl;
+    OGRLayer *layer_vehicle;
     OGRLayer *layer_nodes;
     OGRLayer *layer_sidewalks;
     OGRLayer *layer_intersects;
     geom::OGRFactory<> ogr_factory;
+    geom::GEOSFactory<> geos_factory;
     string output_database;
     string output_filename;
     //const char *SRS = "WGS84";
@@ -151,15 +96,15 @@ class DataStorage {
         create_field(layer_ways, "name", OFTString, 40);
         create_field(layer_ways, "osm_id", OFTString, 14); 
 
-        create_table(layer_vhcl, "vhcl", wkbLineString);
-        create_field(layer_vhcl, "gid", OFTInteger, 10); 
-        create_field(layer_vhcl, "class_id", OFTInteger, 10);
-        create_field(layer_vhcl, "sidewalk", OFTString, 1);
-        create_field(layer_vhcl, "type", OFTString, 20);
-        create_field(layer_vhcl, "lanes", OFTInteger, 10);
-        create_field(layer_vhcl, "length", OFTReal, 10);
-        create_field(layer_vhcl, "name", OFTString, 40);
-        create_field(layer_vhcl, "osm_id", OFTString, 14); 
+        create_table(layer_vehicle, "vehicle", wkbLineString);
+        create_field(layer_vehicle, "gid", OFTInteger, 10); 
+        create_field(layer_vehicle, "class_id", OFTInteger, 10);
+        create_field(layer_vehicle, "sidewalk", OFTString, 1);
+        create_field(layer_vehicle, "type", OFTString, 20);
+        create_field(layer_vehicle, "lanes", OFTInteger, 10);
+        create_field(layer_vehicle, "length", OFTReal, 10);
+        create_field(layer_vehicle, "name", OFTString, 40);
+        create_field(layer_vehicle, "osm_id", OFTString, 14); 
 
         create_table(layer_nodes, "nodes", wkbPoint);
         create_field(layer_nodes, "osm_id", OFTString, 14);
@@ -174,6 +119,7 @@ class DataStorage {
     }
 
     void order_clockwise(object_id_type node_id) {
+        cout << "oclws" << endl;
         Location node_location; 
         Location last_location; 
         int vector_size = node_map[node_id].size();
@@ -193,6 +139,7 @@ class DataStorage {
                 break;
             }
         }
+        cout << "oclws end" << endl;
     }
         
 //    const string get_timestamp(Timestamp timestamp) {
@@ -234,16 +181,18 @@ public:
      */
 
     OGRSpatialReference sparef_wgs84;
-    google::sparse_hash_set<Road*> vehicle_road_set;
-    google::sparse_hash_set<Road*> pedestrian_road_set;
+    google::sparse_hash_set<VehicleRoad*> vehicle_road_set;
+    google::sparse_hash_set<PedestrianRoad*> pedestrian_road_set;
     google::sparse_hash_map<object_id_type,
-	    vector<pair<object_id_type, Road*>>> node_map;
+	    vector<pair<object_id_type, VehicleRoad*>>> node_map;
     google::sparse_hash_set<string> finished_connections;
-    vector<geos::geom::Geometry*> *sidewalks;
-    vector<geos::geom::Geometry*> *vhcl_roads;
+    vector<geos::geom::Geometry*> *pedestrian_geometries;
+    vector<geos::geom::Geometry*> *vehicle_geometries;
+    vector<geos::geom::Geometry*> *sidewalk_geometries;
+    geos::geom::Geometry *geos_pedestrian_net;
+    geos::geom::Geometry *geos_vehicle_net;
     geos::geom::Geometry *geos_sidewalk_net;
-    geos::geom::Geometry *geos_vhcl_net;
-    geos::geom::GeometryFactory geos_factory;
+    //geos::geom::GeometryFactory geos_factory;
 
     explicit DataStorage(string outfile,
             location_handler_type &location_handler) :
@@ -255,14 +204,15 @@ public:
 	finished_connections.set_deleted_key("");
         vehicle_road_set.set_deleted_key(nullptr);
         pedestrian_road_set.set_deleted_key(nullptr);
-        sidewalks = new vector<geos::geom::Geometry*>();
-        vhcl_roads = new vector<geos::geom::Geometry*>();
+        pedestrian_geometries = new vector<geos::geom::Geometry*>();
+        sidewalk_geometries = new vector<geos::geom::Geometry*>();
+        vehicle_geometries = new vector<geos::geom::Geometry*>();
     }
 
     ~DataStorage() {
         layer_ways->CommitTransaction();
         layer_nodes->CommitTransaction();
-        layer_vhcl->CommitTransaction();
+        layer_vehicle->CommitTransaction();
         layer_sidewalks->CommitTransaction();
         layer_intersects->CommitTransaction();
 
@@ -270,34 +220,35 @@ public:
         OGRCleanupAll();
     }
 
-    Road *store_pedestrian_road(string name, OGRGeometry *geometry,
+
+    /*PedestrianRoad *store_pedestrian_road(string name, geos::geom::Geometry *geometry,
         string type, double length, string osm_id) {
 
-        Road *pedestrian_road = new Road(name, geometry,
+        PedestrianRoad *pedestrian_road = new PedestrianRoad(name, geometry,
                 type, length, osm_id);
         pedestrian_road_set.insert(pedestrian_road);
 	return pedestrian_road;
     }
 
-    Road *store_vehicle_road(string name, OGRGeometry *geometry,
+    VehicleRoad *store_vehicle_road(string name, geos::geom::Geometry *geometry,
         char sidewalk, string type, int lanes, double length,
         string osm_id) {
 
-        Road *vehicle_road = new Road(name, geometry, sidewalk,
+        VehicleRoad *vehicle_road = new VehicleRoad(name, geometry, sidewalk,
                 type, lanes, length, osm_id);
         vehicle_road_set.insert(vehicle_road);
         
 	return vehicle_road;
-    }
+    }*/
 
     void insert_ways() {
         int gid = 0;
-        for (Road *road : pedestrian_road_set) {
+        for (PedestrianRoad *road : pedestrian_road_set) {
             gid++;
             OGRFeature *feature;
             feature = OGRFeature::CreateFeature(layer_ways->GetLayerDefn());
 
-            if (feature->SetGeometry(road->geometry) != OGRERR_NONE) {
+            if (feature->SetGeometry(road->get_ogr_geom()) != OGRERR_NONE) {
                 cerr << "Failed to create geometry feature for way: ";
                 cerr << road->osm_id << endl;
             }
@@ -315,14 +266,14 @@ public:
         }
     }
 
-    void insert_vhcl() {
+    void insert_vehicle() {
         int gid = 0;
-        for (Road *road : vehicle_road_set) {
+        for (VehicleRoad *road : vehicle_road_set) {
             gid++;
             OGRFeature *feature;
-            feature = OGRFeature::CreateFeature(layer_vhcl->GetLayerDefn());
+            feature = OGRFeature::CreateFeature(layer_vehicle->GetLayerDefn());
 
-            if (feature->SetGeometry(road->geometry) != OGRERR_NONE) {
+            if (feature->SetGeometry(road->get_ogr_geom()) != OGRERR_NONE) {
                 cerr << "Failed to create geometry feature for way: ";
                 cerr << road->osm_id << endl;
             }
@@ -336,7 +287,7 @@ public:
             feature->SetField("name", road->name.c_str());
             feature->SetField("osm_id", road->osm_id.c_str());
 
-            if (layer_vhcl->CreateFeature(feature) != OGRERR_NONE) {
+            if (layer_vehicle->CreateFeature(feature) != OGRERR_NONE) {
                 cerr << "Failed to create ways feature." << endl;
             }
             OGRFeature::DestroyFeature(feature);
@@ -379,16 +330,16 @@ public:
         OGRFeature::DestroyFeature(feature);
     }
     
-    void union_sidewalks() { 
-        geos_sidewalk_net = go.union_geometries(sidewalks);
+    void union_sidewalk_geometries() { 
+        geos_sidewalk_net = go.union_geometries(sidewalk_geometries);
     }
 
-    void union_vhcl_roads() {
-        geos_vhcl_net = go.union_geometries(vhcl_roads);
+    void union_vehicle_geometries() {
+        geos_vehicle_net = go.union_geometries(vehicle_geometries);
     }
 
-    void insert_sidewalk(OGRGeometry *sidewalk) {
-        OGRFeature *feature;
+    void insert_sidewalk(OGRGeometry* sidewalk) {
+        OGRFeature* feature;
         feature = OGRFeature::CreateFeature(layer_sidewalks->GetLayerDefn());
         if (feature->SetGeometry(sidewalk) != OGRERR_NONE) {
             cerr << "Failed to create geometry feature for sidewalk.";
@@ -401,11 +352,11 @@ public:
 
     void insert_in_node_map(object_id_type start_node,
             object_id_type end_node,
-            Road *road) {
+            VehicleRoad* road) {
 	
-        node_map[start_node].push_back(pair<object_id_type, Road*>
+        node_map[start_node].push_back(pair<object_id_type, VehicleRoad*>
 		(end_node, road));
-        node_map[end_node].push_back(pair<object_id_type, Road*>
+        node_map[end_node].push_back(pair<object_id_type, VehicleRoad*>
 		(start_node, road));
         if (node_map[start_node].size() > 2) {
             order_clockwise(start_node);

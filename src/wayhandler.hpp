@@ -22,63 +22,30 @@ typedef handler::NodeLocationsForWays<index_pos_type,
 
 class WayHandler : public handler::Handler {
 
-    DataStorage &ds;
-    location_handler_type &location_handler;
+    DataStorage& ds;
+    location_handler_type& location_handler;
     GeomOperate go;
     geom::OGRFactory<> ogr_factory;
     const bool left = true;
     const bool right = false;
     bool is_first_way = true;
 
-    Road *get_road(Way &way, bool is_pedestrian) {
-        OGRLineString *linestring = nullptr;
-        try {
-            linestring = ogr_factory.create_linestring(way,
-                    geom::use_nodes::unique,
-                    geom::direction::forward).release();
-        } catch (...) {
-            cerr << "Error at way: " << way.id() << endl;
-            cerr << "  Unexpected error" << endl;
-            return nullptr;
-        }
-
-        string name = TagCheck::get_name(way);
-        string type = TagCheck::get_highway_type(way);
-        double length = linestring->get_Length();
-        string osm_id = to_string(way.id());
-        Road *road;
-        if (is_pedestrian) {
-            try {
-                road = ds.store_pedestrian_road(name, linestring, type, length,
-                        osm_id);
-            } catch (...) {
-                cerr << "Inserting to set failed for way: "
-                << way.id() << endl;
-            }
-        } else {
-            char sidewalk = TagCheck::get_sidewalk(way);
-            int lanes = TagCheck::get_lanes(way);
-            try {
-                road = ds.store_vehicle_road(name, linestring, sidewalk, type,
-                        lanes, length, osm_id);
-            } catch (...) {
-                cerr << "Inserting to set failed for way: "
-                << way.id() << endl;
-            }
-        }
-        return road;
-        //delete linestring;
+    void handle_pedestrian_road(Way& way) {
+        cout << "pdstn" << endl;
+        PedestrianRoad *pedestrian_road = new PedestrianRoad(way);
+        ds.pedestrian_road_set.insert(pedestrian_road);
+        ds.pedestrian_geometries->push_back(pedestrian_road->geometry);
+        cout << "pdstn end" << endl;
     }
 
-    void handle_pedestrian_road(Way &way) {
-        Road *pedestrian_road;
-        pedestrian_road = get_road(way, true);
-    }
-
-    void handle_vehicle_road(Way &way) {
-        Road *vehicle_road;
-        vehicle_road = get_road(way, false);
+    void handle_vehicle_road(Way& way) {
+        cout << "vhcl" << endl;
+        VehicleRoad *vehicle_road = new VehicleRoad(way);
+        ds.vehicle_road_set.insert(vehicle_road);
+        ds.vehicle_geometries->push_back(vehicle_road->geometry);
+        cout << "before it" << endl;
 	iterate_over_nodes(way, vehicle_road);
+        cout << "vhcl end" << endl;
     }
     
     bool has_same_location(object_id_type node1,
@@ -92,15 +59,14 @@ class WayHandler : public handler::Handler {
                 (location1.lat() == location2.lat()));
     }
 
-
-    void iterate_over_nodes(Way &way, Road *road) {
+    void iterate_over_nodes(Way& way, VehicleRoad* road) {
         object_id_type prev_node = 0;
         object_id_type current_node = 0;
         for (NodeRef node : way.nodes()) {
             current_node = node.ref();
             if (prev_node != 0) {
                 if (!has_same_location(prev_node, current_node)) {
-                    ds.insert_in_node_map(prev_node, node.ref(), road);
+                    ds.insert_in_node_map(prev_node, current_node, road);
                 }
             }
             prev_node = current_node;
@@ -124,12 +90,13 @@ class WayHandler : public handler::Handler {
     
 public:
 
-    explicit WayHandler(DataStorage &data_storage,
-            location_handler_type &location_handler) :
+    explicit WayHandler(DataStorage& data_storage,
+            location_handler_type& location_handler) :
             ds(data_storage), location_handler(location_handler) {
     }
 
-    void way(Way &way) {
+    void way(Way& way) {
+            cout << "WAYHANDLER: " << way.id() << endl;
         if (is_first_way) {
             cerr << "... handle ways ..." << endl;
         }
@@ -159,8 +126,14 @@ public:
         //        0.003, left);
         //ds.insert_sidewalk(left_sidewalk);
         //ds.insert_sidewalk(right_sidewalk);
-        ds.sidewalks->push_back(left_sidewalk);
+        ds.sidewalk_geometries->push_back(left_sidewalk);
     }
+
+
+/* NOTE:
+ * mit den richtigen geometrien arbeiten nicht mit osm ids. gibt performance und ich kann die geometrien verändern...
+ *
+ */
 
     void construct_convex_segment(object_id_type current,
             object_id_type prev_neighbour,
@@ -177,24 +150,23 @@ public:
         prev_location = location_handler.get_node_location(prev_neighbour);
         double angle;
         angle = go.angle(prev_location, current_location, next_location);
-        //if (angle > 180) {
+        if (angle > 180) {
             vertical_point1 = go.vertical_point(current_location, prev_location,
                     0.003, left);
             vertical_point2 = go.vertical_point(current_location,
                     next_location, 0.003, right);
-        /* else {
+        } else {
             vertical_point1 = go.vertical_point(current_location, prev_location,
                     0.003, right);
             vertical_point2 = go.vertical_point(current_location, next_location,
                     0.003, left);
-        }*/
+        }
             convex_segment = go.connect_locations(vertical_point1,
                     vertical_point2);
-            ds.sidewalks->push_back(convex_segment);
+            ds.sidewalk_geometries->push_back(convex_segment);
             //ds.insert_sidewalk(convex_segment);
             string ori = to_string(static_cast<int>(ceil(go.orientation(current_location, prev_location)))) + to_string(static_cast<int>(ceil(go.orientation(current_location, next_location))));
             //ds.insert_node(current_location, current, ori.c_str(), angle);
-        //}
         
         
         

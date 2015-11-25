@@ -42,6 +42,7 @@ typedef geos::geom::LineString linestring_type;
 
 #include "geometricoperations.hpp"
 #include "tagcheck.hpp"
+#include "road.hpp"
 #include "datastorage.hpp"
 #include "wayhandler.hpp"
 
@@ -121,10 +122,10 @@ int main(int argc, char* argv[]) {
     way_handler.generate_sidewalks();
 
     cerr << "!" << endl;
-    ds.union_sidewalks();
+    ds.union_sidewalk_geometries();
     cerr << "node_map size: " << ds.node_map.size() << endl;
     cerr << "finished_connections size: " << ds.finished_connections.size() << endl;
-    //ds.insert_vhcl();
+    //ds.insert_vehicle();
     GeomOperate go;
     OGRGeometry *ogr_sidewalk_net = nullptr;
     ogr_sidewalk_net = go.geos2ogr(ds.geos_sidewalk_net);
