@@ -40,11 +40,12 @@ typedef handler::NodeLocationsForWays<index_pos_type, index_neg_type>
         location_handler_type;
 typedef geos::geom::LineString linestring_type;
 
-#include "geometricoperations.hpp"
-#include "tagcheck.hpp"
+#include "geometric_operations.hpp"
+#include "tag_check.hpp"
 #include "road.hpp"
-#include "datastorage.hpp"
-#include "wayhandler.hpp"
+#include "data_storage.hpp"
+#include "way_handler.hpp"
+#include "sidewalk_factory.hpp"
 
 
 void print_help() {
@@ -98,39 +99,34 @@ int main(int argc, char* argv[]) {
     location_handler_type location_handler(index_pos, index_neg);
     location_handler.ignore_errors();
     DataStorage ds(output_filename, location_handler);
+    GeomOperate go;
+    SidewalkFactory sf(ds, location_handler);
     
     cerr << "start reading osm ..." << endl;
     io::Reader reader(input_filename);
     WayHandler way_handler(ds, location_handler);
     apply(reader, location_handler, way_handler);
-    reader.close();
-    cerr << "!" << endl;
-
-    /*
-    for (auto node : ds.node_map) {
-	cout << node.first << ": " << endl;
-	for (auto link : node.second) {
-	    cout << "  " << link.first << " - " << link.second->name << endl;
-	}
-    }
-    */
 
     cerr << "insert osm footways in postgres ...";
     //ds.insert_ways();
-    cerr << "!" << endl;
     cerr << "generate sidewalks ...";
-    way_handler.generate_sidewalks();
+    sf.generate_sidewalks();
 
-    cerr << "!" << endl;
-    ds.union_sidewalk_geometries();
+    //ds.union_vehicle_geometries();
+    //ds.union_pedestrian_geometries();
     cerr << "node_map size: " << ds.node_map.size() << endl;
-    cerr << "finished_connections size: " << ds.finished_connections.size() << endl;
     //ds.insert_vehicle();
-    GeomOperate go;
+    //OGRGeometry *ogr_pedestrian_net = nullptr;
+    //OGRGeometry *ogr_vehicle_net = nullptr;
     OGRGeometry *ogr_sidewalk_net = nullptr;
+    //ogr_pedestrian_net = go.geos2ogr(ds.geos_pedestrian_net);
+    //ogr_vehicle_net = go.geos2ogr(ds.geos_vehicle_net);
     ogr_sidewalk_net = go.geos2ogr(ds.geos_sidewalk_net);
+    //ds.insert_sidewalk(ogr_pedestrian_net);
+    //ds.insert_sidewalk(ogr_vehicle_net);
     ds.insert_sidewalk(ogr_sidewalk_net);
 
+    reader.close();
     cerr << "ready" << endl;
 
     /*** TEST GEOM OPERATOR ***

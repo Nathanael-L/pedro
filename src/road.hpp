@@ -29,7 +29,6 @@ public:
 
     void init_road(Way& way) {
         name = TagCheck::get_name(way);
-        cout << way.id() << endl;
         type = TagCheck::get_highway_type(way);
         //double length = linestring->get_Length();
         double length = 0;
