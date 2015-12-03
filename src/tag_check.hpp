@@ -49,6 +49,7 @@ public:
         if (highway) {
             return true;
         }
+        return false;
     }
 
     static bool is_vehicle(const osmium::OSMObject &osm_object) {

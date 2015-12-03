@@ -68,21 +68,6 @@ class WayHandler : public handler::Handler {
         }
     }
 
-    bool is_constructed(object_id_type node1,
-            object_id_type node2) {
-
-        object_id_type small_id = min(node1, node2);
-        object_id_type big_id = max(node1, node2);
-        string connection_string;
-        connection_string = to_string(small_id) + to_string(big_id);
-        if (ds.finished_connections.find(connection_string)
-	        == ds.finished_connections.end()) {
-	    ds.finished_connections.insert(connection_string);
-            return false;
-        }
-        return true;
-    }
-    
 public:
 
     explicit WayHandler(DataStorage& data_storage,

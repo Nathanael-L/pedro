@@ -14,8 +14,6 @@
 #include <geos/geom/GeometryFactory.h>
 //#include <geos/geom>
 
-using namespace std;
-
 struct LonLat {
     double lon;
     double lat;
@@ -34,7 +32,7 @@ class GeomOperate {
     const double TO_DEG = (180 / 3.1415926536);
     OGRSpatialReference sparef_wgs84;
     OGRGeometryFactory ogr_factory;
-    geos::geom::GeometryFactory geos_factory;
+    GeometryFactory geos_factory;
     geos::io::WKTReader geos_wkt_reader;
     GEOSContextHandle_t hGEOSCtxt;
 
@@ -93,8 +91,8 @@ public:
         double dlon = difference(lon1, lon2);
         double dlat = difference(lat1, lat2);
         double orientation = atan(dlon / (dlat/* sin(lat1 * TO_RAD)*/)) * TO_DEG;
-        if (lat1 < lat2) {
-            if (lon1 > lon2) {
+        if (lat1 > lat2) {
+            if (lon1 < lon2) {
                 /* 2. Quadrant */
                 orientation = 180 - orientation;
             } else {
@@ -102,7 +100,7 @@ public:
                 orientation += 180;
             }
         } else {
-            if (lon1 < lon2) {
+            if (lon1 > lon2) {
                 /* 4. Quadrant */
                 orientation = 360 - orientation;
             } else {
@@ -119,9 +117,30 @@ public:
     }
 
     double angle(Location first, Location middle, Location second) {
-        double orientation1 = orientation(middle, second);
-        double orientation2 = orientation(middle, first);
-        double alpha = orientation1 - orientation2;
+        double orientation1 = orientation(middle, first);
+        double orientation2 = orientation(middle, second);
+        double alpha = orientation2 - orientation1;
+        if (alpha < 0 ) {
+            alpha += 360;
+        }
+        return alpha;
+    }
+
+    double angle(LineString* from, LineString* to) {
+        double lon_from_start = from->getStartPoint()->getX();
+        double lat_from_start = from->getStartPoint()->getY();
+        double lon_from_end = from->getEndPoint()->getX();
+        double lat_from_end = from->getEndPoint()->getY();
+        double lon_to_start = to->getStartPoint()->getX();
+        double lat_to_start = to->getStartPoint()->getY();
+        double lon_to_end = to->getEndPoint()->getX();
+        double lat_to_end = to->getEndPoint()->getY();
+
+        double orientation1 = orientation(lon_from_start, lat_from_start,
+                lon_from_end, lat_from_end);
+        double orientation2 = orientation(lon_to_start, lat_to_start,
+                lon_to_end, lat_to_end);
+        double alpha = orientation2 - orientation1;
         if (alpha < 0 ) {
             alpha += 360;
         }
@@ -129,13 +148,13 @@ public:
     }
 
     Location vertical_point(double lon1, double lat1, double lon2,
-            double lat2, double distance, bool extend, bool left = true) {
+            double lat2, double distance, bool left = true) {
 
         int angle = 90;
-        if (extend) {
-            //distance *= SQRT2;
-            //angle = 45;
-        }
+        /*if (extend) {
+            distance *= SQRT2;
+            angle = 45;
+        }*/
         LonLat delta = inverse_haversine(lon1, lat1, distance);
         double reverse_orientation;
         reverse_orientation = orientation(lon1, lat1, lon2, lat2);
@@ -154,17 +173,16 @@ public:
 
     Location vertical_point(Location start_location,
             Location end_location, double distance,
-             bool extend, bool left = true) {
+             bool left = true) {
 
         Location point;
         point = vertical_point(start_location.lon(), start_location.lat(),
-                end_location.lon(), end_location.lat(), distance,
-                extend, left);
+                end_location.lon(), end_location.lat(), distance, left);
 	    return point;
     }
 
-    geos::geom::Geometry *connect_locations(Location location1, Location location2) {
-        geos::geom::Geometry *geos_line = nullptr;
+    LineString* connect_locations(Location location1, Location location2) {
+        Geometry* geos_line = nullptr;
         string target_wkt = "LINESTRING (";
         target_wkt += to_string(location1.lon()) + " ";
         target_wkt += to_string(location1.lat()) + ", ";
@@ -177,30 +195,29 @@ public:
             cerr << "Failed to create from wkt.";
             exit(1);
         }
-        return geos_line;
+        return dynamic_cast<LineString*>(geos_line);
     }
 
-    geos::geom::Geometry *parallel_line(Location location1,
-            Location location2, double distance, bool extend,
-            bool left = true) {
+    LineString* parallel_line(Location location1,
+            Location location2, double distance, bool left = true) {
 
-        geos::geom::Geometry *geos_line = nullptr;
+        LineString* geos_line = nullptr;
         Location start;
         Location end;
-        start = vertical_point(location1, location2, distance, extend, left);
-        end = vertical_point(location2, location1, distance, extend, !left);
+        start = vertical_point(location1, location2, distance, left);
+        end = vertical_point(location2, location1, distance, !left);
         geos_line = connect_locations(start, end);
         return geos_line;
     }
 
-    OGRGeometry *ogr_connect_locations(Location location1, Location location2) {
-        OGRGeometry *ogr_line = nullptr;
+    OGRGeometry* ogr_connect_locations(Location location1, Location location2) {
+        OGRGeometry* ogr_line = nullptr;
         string target_wkt = "LINESTRING (";
         target_wkt += to_string(location1.lon()) + " ";
         target_wkt += to_string(location1.lat()) + ", ";
         target_wkt += to_string(location2.lon()) + " ";
         target_wkt += to_string(location2.lat()) + ")";
-        char *wkt;
+        char* wkt;
         wkt = strdup(target_wkt.c_str());
         if (ogr_factory.createFromWkt(&wkt, &sparef_wgs84, &ogr_line) != OGRERR_NONE) {
             cerr << "Failed to connect coordinates.";
@@ -208,24 +225,23 @@ public:
         return ogr_line;
     }
 
-    OGRGeometry *ogr_parallel_line(Location location1,
-            Location location2, double distance, bool extend,
-            bool left = true) {
+    OGRGeometry* ogr_parallel_line(Location location1,
+            Location location2, double distance, bool left = true) {
 
-        OGRGeometry *ogr_line = nullptr;
+        OGRGeometry* ogr_line = nullptr;
         Location start;
         Location end;
-        start = vertical_point(location1, location2, distance, extend, left);
-        end = vertical_point(location2, location1, distance, extend, !left);
+        start = vertical_point(location1, location2, distance, left);
+        end = vertical_point(location2, location1, distance, !left);
         ogr_line = ogr_connect_locations(start, end);
         return ogr_line;
     }
 
-    geos::geom::Geometry *union_geometries(vector<geos::geom::Geometry*>
+    Geometry* union_geometries(vector<Geometry*>
                 geom_vector) { 
         
-        geos::geom::GeometryCollection *geom_collection = nullptr;
-        geos::geom::Geometry *result = nullptr;
+        geos::geom::GeometryCollection* geom_collection = nullptr;
+        Geometry* result = nullptr;
         try {
             geom_collection = geos_factory.createGeometryCollection(
                     &geom_vector);
@@ -244,22 +260,22 @@ public:
         return result;
     }
 
-    Location mean(Location location1,
-            Location location2) {
+    Point* mean(Point* point1, Point* point2) {
 
-        Location location;
-        location.set_lon((location1.lon() + location2.lon()) / 2);
-        location.set_lat((location1.lat() + location2.lat()) / 2);
-        return location;
+        double lon = ((point1->getX() + point2->getX()) / 2);
+        double lat = ((point1->getY() + point2->getY()) / 2);
+        Coordinate mean_coords(lon, lat);
+        Point* mean = geos_factory.createPoint(mean_coords);
+        return mean;
     }
 
-    /*geos::geom::Geometry *ogr2geos(OGRGeometry *ogr_geom)
+    /*Geometry* ogr2geos(OGRGeometry* ogr_geom)
     {
-        geos::geom::Geometry *geos_geom;
+        Geometry* geos_geom;
 
         istream is;
         string wkb = is.str();
-        if (ogr_geom->exportToWkb(wkbXDR, (unsigned char *) wkb.c_str())
+        if (ogr_geom->exportToWkb(wkbXDR, (unsigned char* ) wkb.c_str())
                 != OGRERR_NONE ) {
             geos_geom = nullptr;
             assert(false);
@@ -271,16 +287,28 @@ public:
         return geos_geom;
     }*/
 
-    OGRGeometry *geos2ogr(const geos::geom::Geometry *g)
+    double get_length(Geometry *geometry) {
+        if (geometry->getGeometryType() == "LineString") {
+            LineString *linestring = dynamic_cast<LineString*>(geometry);
+            CoordinateSequence *coords = linestring->getCoordinates();
+            /*for (auto coord : coords) {
+                cout << coord.getX() << endl;
+                cout << coord.getY() << endl;
+            }*/
+             //TODO
+        }
+    }
+
+    OGRGeometry* geos2ogr(const Geometry* g)
     {
-        OGRGeometry *ogr_geom;
+        OGRGeometry* ogr_geom;
 
         geos::io::WKBWriter wkbWriter;
         wkbWriter.setOutputDimension(g->getCoordinateDimension());
         ostringstream ss;
         wkbWriter.write(*g, ss);
         string wkb = ss.str();
-        if (OGRGeometryFactory::createFromWkb((unsigned char *) wkb.c_str(),
+        if (OGRGeometryFactory::createFromWkb((unsigned char* ) wkb.c_str(),
                                               nullptr, &ogr_geom, wkb.size())
             != OGRERR_NONE ) {
             ogr_geom = nullptr;

@@ -25,13 +25,11 @@ public:
     string name;
     string type;
     double length;
-    geos::geom::Geometry *geometry;
+    Geometry *geometry;
 
     void init_road(Way& way) {
         name = TagCheck::get_name(way);
         type = TagCheck::get_highway_type(way);
-        //double length = linestring->get_Length();
-        double length = 0;
         try {
             geometry = nullptr;
             geometry = geos_factory.create_linestring(way,
@@ -41,6 +39,7 @@ public:
             cerr << " GEOS ERROR at way: " << way.id() << endl;
         }
 
+        length = geometry->getLength();
 	if (!geometry) {
 	    cerr << "bad reference for geometry" << endl;
 	    exit(1);
@@ -87,9 +86,9 @@ class Sidewalk : public Road {
     
 public:
 
-    //string osm_id;
+    string osm_id;
 
-    Sidewalk(string name, geos::geom::Geometry *geometry,
+    Sidewalk(string name, Geometry *geometry,
             string type, double length) {
 
         this->name = name;
@@ -102,6 +101,14 @@ public:
         this->length = length;
         //this->osm_id = osm_id;
     }
+
+    Sidewalk(Geometry *geometry, VehicleRoad *vehicle_road) {
+        this->name = vehicle_road->name;
+        this->geometry = geometry;
+        this->type = vehicle_road->type;
+        this->length = geometry->getLength();
+        this->osm_id = vehicle_road->osm_id;
+    }        
 };
 
 
@@ -109,9 +116,9 @@ class Crossing : public Road {
 
 public:
     
-    //string osm_id;
+    string osm_id;
 
-    Crossing(string name, geos::geom::Geometry *geometry,
+    Crossing(string name, Geometry *geometry,
             string type, double length) {
 
         this->name = name;
@@ -122,7 +129,7 @@ public:
         this->geometry = geometry;
         this->type = type;
         this->length = length;
-        //this->osm_id = osm_id;
+        this->osm_id = osm_id;
     }
 };
 

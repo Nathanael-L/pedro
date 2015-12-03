@@ -31,6 +31,13 @@
 
 using namespace std;
 using namespace osmium;
+using geos::geom::Coordinate;
+using geos::geom::Geometry;
+using geos::geom::LineString;
+using geos::geom::Point;
+using geos::geom::GeometryFactory;
+using geos::geom::CoordinateSequence;
+
 
 typedef index::map::Dummy<unsigned_object_id_type,
         Location> index_neg_type;
@@ -38,7 +45,6 @@ typedef index::map::SparseMemArray<unsigned_object_id_type,
         Location> index_pos_type;
 typedef handler::NodeLocationsForWays<index_pos_type, index_neg_type>
         location_handler_type;
-typedef geos::geom::LineString linestring_type;
 
 #include "geometric_operations.hpp"
 #include "tag_check.hpp"
@@ -108,7 +114,7 @@ int main(int argc, char* argv[]) {
     apply(reader, location_handler, way_handler);
 
     cerr << "insert osm footways in postgres ...";
-    //ds.insert_ways();
+    ds.insert_ways();
     cerr << "generate sidewalks ...";
     sf.generate_sidewalks();
 
@@ -116,15 +122,7 @@ int main(int argc, char* argv[]) {
     //ds.union_pedestrian_geometries();
     cerr << "node_map size: " << ds.node_map.size() << endl;
     //ds.insert_vehicle();
-    //OGRGeometry *ogr_pedestrian_net = nullptr;
-    //OGRGeometry *ogr_vehicle_net = nullptr;
-    OGRGeometry *ogr_sidewalk_net = nullptr;
-    //ogr_pedestrian_net = go.geos2ogr(ds.geos_pedestrian_net);
-    //ogr_vehicle_net = go.geos2ogr(ds.geos_vehicle_net);
-    ogr_sidewalk_net = go.geos2ogr(ds.geos_sidewalk_net);
-    //ds.insert_sidewalk(ogr_pedestrian_net);
-    //ds.insert_sidewalk(ogr_vehicle_net);
-    ds.insert_sidewalk(ogr_sidewalk_net);
+    ds.insert_sidewalks();
 
     reader.close();
     cerr << "ready" << endl;
@@ -132,14 +130,9 @@ int main(int argc, char* argv[]) {
     /*** TEST GEOM OPERATOR ***
     GeomOperate go;
     Location A, B, C;
-    for (double i=4; i<9; ++i) {
-        A.set_lon(i * 11 + 0.007 * i); A.set_lat(9.0 + 0.008 * (i-1));
-        B.set_lon(i * 11 + 0.01 * (i - 2)); B.set_lat(9.0 + 0.0067 * i);
-        C = go.vertical_point(B.lon(), B.lat(), A.lon(), A.lat(), 1);
-        cout << "LINESTRING (" << A.lat() << " " << A.lon() << ", " << B.lat()
-                << " " << B.lon() << ")" << endl;
-        cout << "LINESTRING (" << B.lat() << " " << B.lon() << ", " << C.lat()
-                << " " << C.lon() << ")" << endl;
-    }
+    A.set_lon(10); A.set_lat(20);
+    B.set_lon(18); B.set_lat(10);
+    C.set_lon(30); C.set_lat(0);
+    cout << "x = " << go.angle(A,B,C);
     ***/
 }
