@@ -36,7 +36,6 @@ class GeomOperate {
     geos::io::WKTReader geos_wkt_reader;
     GEOSContextHandle_t hGEOSCtxt;
 
-
 public:
     
     GeomOperate() {
@@ -58,6 +57,14 @@ public:
         dx = cos(lat1) * cos(lon1) - cos(lon2);
         dy = sin(lat1) * cos(lon1);
         return asin(sqrt(dx * dx + dy * dy + dz * dz) / 2) * 2 * EARTH_RADIUS;
+    }
+
+    double haversine(Point* point1, Point* point2) {
+        
+        double distance;
+        distance = haversine(point1->getX(), point1->getY(), point2->getX(),
+                point2->getY());
+        return distance;
     }
 
     double haversine(Location location1, Location location2) {
@@ -111,6 +118,12 @@ public:
         return orientation;
     }
 
+        
+    double orientation(Point* point1, Point* point2) {
+        return orientation(point1->getX(), point1->getY(), point2->getX(),
+                point2->getY());
+    }
+
     double orientation(Location location1, Location location2) {
         return orientation(location1.lon(), location1.lat(), location2.lon(),
                 location2.lat());
@@ -147,7 +160,30 @@ public:
         return alpha;
     }
 
-    Location vertical_point(double lon1, double lat1, double lon2,
+    Point* vertical_point(double lon1, double lat1, double lon2,
+            double lat2, double distance, bool left = true) {
+
+        int angle = 90;
+        /*if (extend) {
+            distance *= SQRT2;
+            angle = 45;
+        }*/
+        LonLat delta = inverse_haversine(lon1, lat1, distance);
+        double reverse_orientation;
+        reverse_orientation = orientation(lon1, lat1, lon2, lat2);
+        if (left) {
+            reverse_orientation -= angle;
+        } else {
+            reverse_orientation += angle;
+        }
+        double new_lon = lon1 + sin(reverse_orientation * TO_RAD) * delta.lon;
+        double new_lat = lat1 + cos(reverse_orientation * TO_RAD) * delta.lat;
+        const Coordinate coord = Coordinate(new_lon, new_lat);
+        Point* point = geos_factory.createPoint(coord);
+        return point;
+    }
+
+    Location vertical_location(double lon1, double lat1, double lon2,
             double lat2, double distance, bool left = true) {
 
         int angle = 90;
@@ -171,14 +207,33 @@ public:
         return point;
     }
 
-    Location vertical_point(Location start_location,
-            Location end_location, double distance,
-             bool left = true) {
+    Point* vertical_point(Point* start_point, Point* end_point,
+            double distance, bool left = true) {
+
+        Point* point;
+        point = vertical_point(start_point->getX(), start_point->getY(),
+                end_point->getX(), end_point->getY(), distance, left);
+	return point;
+    }
+
+    Location vertical_location(Location start_location, Location end_location,
+            double distance, bool left = true) {
 
         Location point;
-        point = vertical_point(start_location.lon(), start_location.lat(),
+        point = vertical_location(start_location.lon(), start_location.lat(),
                 end_location.lon(), end_location.lat(), distance, left);
 	return point;
+    }
+
+    LineString* connect_points(Point* point1, Point* point2) {
+        CoordinateSequence *coords = nullptr;
+        const Coordinate* coordinate1;
+        const Coordinate* coordinate2;
+        coordinate1 = point1->getCoordinate();
+        coordinate2 = point2->getCoordinate();
+        coords->add(*coordinate1);
+        coords->add(*coordinate2);
+        return geos_factory.createLineString(coords);
     }
 
     LineString* connect_locations(Location location1, Location location2) {
@@ -204,15 +259,19 @@ public:
         LineString* geos_line = nullptr;
         Location start;
         Location end;
-        start = vertical_point(location1, location2, distance, left);
-        end = vertical_point(location2, location1, distance, !left);
+        start = vertical_location(location1, location2, distance, left);
+        end = vertical_location(location2, location1, distance, !left);
         geos_line = connect_locations(start, end);
         return geos_line;
     }
 
-    LineString* orthogonal_line(LineString* linestring, double distance) {
+    LineString* orthogonal_line(Point* point1, Point* point2, double distance) {
         LineString* ortho_line = nullptr;
-        
+        Point* left_point = nullptr;
+        Point* right_point = nullptr;
+        left_point = vertical_point(point1, point2, distance, true);
+        right_point = vertical_point(point1, point2, distance, false);
+        ortho_line = connect_points(left_point, right_point);        
         return ortho_line;
     }
 
@@ -237,8 +296,8 @@ public:
         OGRGeometry* ogr_line = nullptr;
         Location start;
         Location end;
-        start = vertical_point(location1, location2, distance, left);
-        end = vertical_point(location2, location1, distance, !left);
+        start = vertical_location(location1, location2, distance, left);
+        end = vertical_location(location2, location1, distance, !left);
         ogr_line = ogr_connect_locations(start, end);
         return ogr_line;
     }
