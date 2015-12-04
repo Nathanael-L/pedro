@@ -56,40 +56,56 @@ class SidewalkFactory {
         }
         return false;
     }
+
+    bool exists(VehicleMapValue map_value, bool left) {
+        switch (map_value.vehicle_road->sidewalk) {
+            case 'b':
+                return true;
+            case 'n':
+                return false;
+            case 'l':
+                if (left) {
+                    return map_value.forward;
+                } else {
+                    return !map_value.forward;
+                }
+            case 'r':
+                if (!left) {
+                    return map_value.forward;
+                } else {
+                    return !map_value.forward;
+                }
+        }
+        return false;
+    }
    
-    void construct_parallel_sidewalks(int i, int count_neighbours,
-            pair<object_id_type,
-            vector<pair<object_id_type, VehicleRoad*>>> node,
-            vector<Sidewalk*>& segments, vector<bool>& reverse) {
+    Sidewalk *construct_parallel_sidewalk(int i, int count_neighbours,
+            pair<object_id_type, vector<VehicleMapValue>> node,
+            vector<Sidewalk*>& segments, vector<bool>& reverse,
+            bool left) {
 
         object_id_type current = node.first;
-        object_id_type neighbour = node.second[i].first;
-        int prev_index = (i - 1 + count_neighbours) % count_neighbours;
-        object_id_type prev_neighbour = node.second[prev_index].first; 
-        VehicleRoad* vehicle_road =  node.second[i].second;
-        LineString* left_segment = nullptr;
-        LineString* right_segment = nullptr;
-        Sidewalk* left_sidewalk = nullptr;
-        Sidewalk* right_sidewalk = nullptr;
+        object_id_type neighbour = node.second[i].node_id;
+        //int prev_index = (i - 1 + count_neighbours) % count_neighbours;
+        //object_id_type prev_neighbour = node.second[prev_index].node_id; 
+        VehicleRoad* vehicle_road =  node.second[i].vehicle_road;
+        LineString* segment = nullptr;
+        Sidewalk* sidewalk = nullptr;
         string connection = get_connection_string(current, neighbour);
         if (!is_constructed(connection)) {
-            left_segment = construct_segment(current, neighbour, left);
-            right_segment = construct_segment(current, neighbour, right);
-            left_sidewalk = new Sidewalk(left_segment, vehicle_road);
-            right_sidewalk = new Sidewalk(right_segment, vehicle_road);
-            insert_segments(connection, left_sidewalk, right_sidewalk);
-            ds.sidewalk_set.insert(left_sidewalk);
-            ds.sidewalk_set.insert(right_sidewalk);
-            reverse.push_back(false);
+            segment = construct_segment(current, neighbour, left);
+            sidewalk = new Sidewalk(segment, vehicle_road);
+            ds.sidewalk_set.insert(sidewalk);
             reverse.push_back(false);
         } else {
-            left_sidewalk = ds.finished_segments[connection].second;
-            right_sidewalk = ds.finished_segments[connection].first;
-            reverse.push_back(true);
+            if (left) {
+                sidewalk = ds.finished_segments[connection].second;
+            } else {
+                sidewalk = ds.finished_segments[connection].first;
+            }
             reverse.push_back(true);
         }
-        segments.push_back(left_sidewalk);
-        segments.push_back(right_sidewalk);
+        return sidewalk;
     }
 
 public:
@@ -202,22 +218,45 @@ public:
             reverse.clear();
             int count_neighbours = node.second.size();
             for (int i = 0; i < count_neighbours; ++i) {
-                construct_parallel_sidewalks(i, count_neighbours, node,
-                        segments, reverse);
+                object_id_type current = node.first;
+                object_id_type neighbour = node.second[i].node_id;
+                string connection = get_connection_string(current, neighbour);
+                Sidewalk* left_sidewalk = nullptr;
+                Sidewalk* right_sidewalk = nullptr;
+                if (exists(node.second[i], left)) {
+                    left_sidewalk = construct_parallel_sidewalk(i, count_neighbours, node,
+                            segments, reverse, left);
+                } else {
+                    reverse.push_back(false);
+                }
+                if (exists(node.second[i], right)) {
+                    right_sidewalk = construct_parallel_sidewalk(i, count_neighbours, node,
+                            segments, reverse, right);
+                } else {
+                    reverse.push_back(false);
+                }
+                segments.push_back(left_sidewalk);
+                segments.push_back(right_sidewalk);
+                insert_segments(connection, left_sidewalk, right_sidewalk);
             }
                 
             int count_segments = segments.size();
+            cout << "count_segments: " << count_segments << " " << reverse.size() << endl;
             if (count_segments > 2) {
                 for (int i = 1; i < count_segments; i += 2) {
                     int next_index = (i + 1) % count_segments;
-                    bool reverse_first = reverse[i];
-                    bool reverse_second = reverse[next_index];
-                    connect_segments(segments[i], segments[next_index],
-                            reverse_first, reverse_second);
+                    if ((segments[i]) && (segments[next_index])) {
+                        bool reverse_first = reverse[i];
+                        bool reverse_second = reverse[next_index];
+                        connect_segments(segments[i], segments[next_index],
+                                reverse_first, reverse_second);
+                    }
                 }
             } else {
-                connect_ends(segments[0], segments[1],
+                if ((segments[0]) && (segments[1])) {
+                    connect_ends(segments[0], segments[1],
                             reverse[0], reverse[1]);
+                }
             }
         }
         //ds.union_sidewalk_geometries();

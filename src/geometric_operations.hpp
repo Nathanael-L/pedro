@@ -178,7 +178,7 @@ public:
         Location point;
         point = vertical_point(start_location.lon(), start_location.lat(),
                 end_location.lon(), end_location.lat(), distance, left);
-	    return point;
+	return point;
     }
 
     LineString* connect_locations(Location location1, Location location2) {
@@ -208,6 +208,12 @@ public:
         end = vertical_point(location2, location1, distance, !left);
         geos_line = connect_locations(start, end);
         return geos_line;
+    }
+
+    LineString* orthogonal_line(LineString* linestring, double distance) {
+        LineString* ortho_line = nullptr;
+        
+        return ortho_line;
     }
 
     OGRGeometry* ogr_connect_locations(Location location1, Location location2) {

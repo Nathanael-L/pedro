@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
     //ds.union_vehicle_geometries();
     //ds.union_pedestrian_geometries();
     cerr << "node_map size: " << ds.node_map.size() << endl;
-    //ds.insert_vehicle();
+    ds.insert_vehicle();
     ds.insert_sidewalks();
 
     reader.close();

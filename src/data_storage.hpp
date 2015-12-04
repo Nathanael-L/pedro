@@ -19,6 +19,20 @@ typedef google::sparse_hash_map<object_id_type,
         vector<pair<object_id_type, VehicleRoad*>>>::iterator
         vehicle_node_map_iterator_type;*/
 
+struct VehicleMapValue {
+    object_id_type node_id;
+    VehicleRoad* vehicle_road;
+    bool forward;
+
+    VehicleMapValue(object_id_type node_id, VehicleRoad* vehicle_road,
+            bool forward) {
+
+        this->node_id = node_id;
+        this->vehicle_road = vehicle_road;
+        this->forward = forward;
+    }
+};
+
 class DataStorage {
 
     OGRSpatialReference sparef_webmercator;
@@ -68,19 +82,20 @@ class DataStorage {
 
         OGRSFDriver* driver;
         driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(
-            "ESRI Shapefile");
-            //"SQLite");
+            //"ESRI Shapefile");
+            "postgresql");
             
 
         if (!driver) {
-            cerr << "ESRI Shapefile" << " driver not available." << endl;
-            //cerr << "SQLite" << " driver not available." << endl;
+            //cerr << "ESRI Shapefile" << " driver not available." << endl;
+            cerr << "postgres" << " driver not available." << endl;
             exit(1);
         }
 
         CPLSetConfigOption("OGR_TRUNCATE", "YES");
         //CPLSetConfigOption("OGR_SQLITE_SYNCHRONOUS", "FALSE");
-        string connection_string = output_filename;
+        //string connection_string = output_filename;
+        string connection_string = "PG:dbname=" + output_filename;
         data_source = driver->CreateDataSource(connection_string.c_str());
         if (!data_source) {
             cerr << "Creation of output file failed." << endl;
@@ -103,7 +118,7 @@ class DataStorage {
         create_field(layer_ways, "name", OFTString, 40);
         create_field(layer_ways, "osm_id", OFTString, 14); 
 
-        /*create_table(layer_vehicle, "vehicle", wkbLineString);
+        create_table(layer_vehicle, "vehicle", wkbLineString);
         create_field(layer_vehicle, "gid", OFTInteger, 10); 
         create_field(layer_vehicle, "class_id", OFTInteger, 10);
         create_field(layer_vehicle, "sidewalk", OFTString, 1);
@@ -113,7 +128,7 @@ class DataStorage {
         create_field(layer_vehicle, "name", OFTString, 40);
         create_field(layer_vehicle, "osm_id", OFTString, 14); 
 
-        create_table(layer_nodes, "nodes", wkbPoint);
+        /*create_table(layer_nodes, "nodes", wkbPoint);
         create_field(layer_nodes, "osm_id", OFTString, 14);
         create_field(layer_nodes, "orientations", OFTString, 7);
         create_field(layer_nodes, "angle", OFTReal, 10);
@@ -131,11 +146,11 @@ class DataStorage {
         int vector_size = node_map[node_id].size();
         node_location = location_handler.get_node_location(node_id);
         last_location = location_handler.get_node_location(
-                node_map[node_id][vector_size - 1].first);
+                node_map[node_id][vector_size - 1].node_id);
 
         double angle_last = go.orientation(node_location, last_location);
         for (int i = vector_size - 1; i > 0; --i) {
-            object_id_type test_id = node_map[node_id][i - 1].first;
+            object_id_type test_id = node_map[node_id][i - 1].node_id;
             Location test_location;
             test_location = location_handler.get_node_location(test_id);
             double angle_test = go.orientation(node_location, test_location);
@@ -184,7 +199,7 @@ public:
     google::sparse_hash_set<PedestrianRoad*> pedestrian_road_set;
     google::sparse_hash_set<Sidewalk*> sidewalk_set;
     google::sparse_hash_map<object_id_type,
-            vector<pair<object_id_type, VehicleRoad*>>> node_map;
+            vector<VehicleMapValue>> node_map;
     google::sparse_hash_map<string, pair<Sidewalk*,
             Sidewalk*>> finished_segments;
     vector<Geometry*> pedestrian_geometries;
@@ -215,9 +230,9 @@ public:
 
     ~DataStorage() {
         layer_ways->CommitTransaction();
-        /*layer_nodes->CommitTransaction();
+        /*layer_nodes->CommitTransaction();*/
         layer_vehicle->CommitTransaction();
-        layer_sidewalks->CommitTransaction();
+        /*layer_sidewalks->CommitTransaction();
         layer_intersects->CommitTransaction();*/
 
         OGRDataSource::DestroyDataSource(data_source);
@@ -389,10 +404,10 @@ public:
             object_id_type end_node,
             VehicleRoad* road) {
 	
-        node_map[start_node].push_back(pair<object_id_type, VehicleRoad*>
-		(end_node, road));
-        node_map[end_node].push_back(pair<object_id_type, VehicleRoad*>
-		(start_node, road));
+        VehicleMapValue forward = VehicleMapValue(end_node, road, true);
+        VehicleMapValue backward = VehicleMapValue(start_node, road, false);
+        node_map[start_node].push_back(forward);
+        node_map[end_node].push_back(backward);
         if (node_map[end_node].size() > 1) {
             order_clockwise(end_node);
         }
