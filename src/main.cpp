@@ -22,6 +22,7 @@
 #include <geos/geom/GeometryCollection.h>
 #include <geos/geom/PrecisionModel.h>
 #include <geos/geom/GeometryFactory.h>
+#include <geos/geom/LineSegment.h>
 #include <geos/index/strtree/STRtree.h>
 #include <geos/io/WKBWriter.h>
 #include <geos/io/WKBReader.h>
@@ -34,6 +35,7 @@ using namespace osmium;
 using geos::geom::Coordinate;
 using geos::geom::Geometry;
 using geos::geom::LineString;
+using geos::geom::LineSegment;
 using geos::geom::Point;
 using geos::geom::GeometryFactory;
 using geos::geom::CoordinateSequence;
@@ -46,10 +48,11 @@ typedef index::map::SparseMemArray<unsigned_object_id_type,
 typedef handler::NodeLocationsForWays<index_pos_type, index_neg_type>
         location_handler_type;
 
-#include "geometric_operations.hpp"
+#include "geom_operate.hpp"
 #include "tag_check.hpp"
 #include "road.hpp"
 #include "data_storage.hpp"
+#include "prepare_handler.hpp"
 #include "way_handler.hpp"
 #include "sidewalk_factory.hpp"
 
@@ -109,22 +112,32 @@ int main(int argc, char* argv[]) {
     SidewalkFactory sf(ds, location_handler);
     
     cerr << "start reading osm ..." << endl;
-    io::Reader reader(input_filename);
-    WayHandler way_handler(ds, location_handler);
-    apply(reader, location_handler, way_handler);
+    io::Reader reader1(input_filename);
+    PrepareHandler prepare_handler(ds, location_handler);
+    apply(reader1, location_handler, prepare_handler);
 
     cerr << "insert osm footways in postgres ...";
+    prepare_handler.create_pedestrian_node_map();
+    reader1.close();
+
+
+    //PASS 2
+
+    io::Reader reader2(input_filename);
+    WayHandler way_handler(ds, location_handler);
+    apply(reader2, location_handler, way_handler);
+    reader2.close();
+
     ds.insert_ways();
     cerr << "generate sidewalks ...";
     sf.generate_sidewalks();
 
     //ds.union_vehicle_geometries();
     //ds.union_pedestrian_geometries();
-    cerr << "node_map size: " << ds.node_map.size() << endl;
+    cerr << "vehicle_vehicle_node_map size: " << ds.vehicle_node_map.size() << endl;
     ds.insert_vehicle();
     ds.insert_sidewalks();
 
-    reader.close();
     cerr << "ready" << endl;
 
     /*** TEST GEOM OPERATOR ***

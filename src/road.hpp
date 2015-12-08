@@ -46,6 +46,17 @@ public:
 	}
     }
 
+    void init_road(Way& way, Geometry* geometry) {
+        name = TagCheck::get_name(way);
+        type = TagCheck::get_highway_type(way);
+        this->geometry = geometry;
+        length = geometry->getLength();
+	if (!geometry) {
+	    cerr << "bad reference for geometry" << endl;
+	    exit(1);
+	}
+    }
+
     OGRGeometry *get_ogr_geom() {
         return go.geos2ogr(geometry);
     }
@@ -62,6 +73,13 @@ public:
         init_road(way);
         osm_id = to_string(way.id());
     }
+
+    PedestrianRoad(Way& way, Geometry* geometry) {
+        init_road(way, geometry);
+        osm_id = to_string(way.id());
+    }
+
+
 };
 
 

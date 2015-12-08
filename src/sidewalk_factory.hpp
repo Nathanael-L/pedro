@@ -211,7 +211,7 @@ public:
     
 
     void generate_sidewalks() {
-        for (auto node : ds.node_map) {
+        for (auto node : ds.vehicle_node_map) {
             vector<Sidewalk*> segments;
             vector<bool> reverse;
             segments.clear();
@@ -241,7 +241,6 @@ public:
             }
                 
             int count_segments = segments.size();
-            cout << "count_segments: " << count_segments << " " << reverse.size() << endl;
             if (count_segments > 2) {
                 for (int i = 1; i < count_segments; i += 2) {
                     int next_index = (i + 1) % count_segments;

@@ -82,20 +82,20 @@ class DataStorage {
 
         OGRSFDriver* driver;
         driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(
-            //"ESRI Shapefile");
-            "postgresql");
+            "ESRI Shapefile");
+            //"postgresql");
             
 
         if (!driver) {
-            //cerr << "ESRI Shapefile" << " driver not available." << endl;
-            cerr << "postgres" << " driver not available." << endl;
+            cerr << "ESRI Shapefile" << " driver not available." << endl;
+            //cerr << "postgres" << " driver not available." << endl;
             exit(1);
         }
 
         CPLSetConfigOption("OGR_TRUNCATE", "YES");
         //CPLSetConfigOption("OGR_SQLITE_SYNCHRONOUS", "FALSE");
-        //string connection_string = output_filename;
-        string connection_string = "PG:dbname=" + output_filename;
+        string connection_string = output_filename;
+        //string connection_string = "PG:dbname=" + output_filename;
         data_source = driver->CreateDataSource(connection_string.c_str());
         if (!data_source) {
             cerr << "Creation of output file failed." << endl;
@@ -143,21 +143,21 @@ class DataStorage {
     void order_clockwise(object_id_type node_id) {
         Location node_location; 
         Location last_location; 
-        int vector_size = node_map[node_id].size();
+        int vector_size = vehicle_node_map[node_id].size();
         node_location = location_handler.get_node_location(node_id);
         last_location = location_handler.get_node_location(
-                node_map[node_id][vector_size - 1].node_id);
+                vehicle_node_map[node_id][vector_size - 1].node_id);
 
         double angle_last = go.orientation(node_location, last_location);
         for (int i = vector_size - 1; i > 0; --i) {
-            object_id_type test_id = node_map[node_id][i - 1].node_id;
+            object_id_type test_id = vehicle_node_map[node_id][i - 1].node_id;
             Location test_location;
             test_location = location_handler.get_node_location(test_id);
             double angle_test = go.orientation(node_location, test_location);
             if (node_id == 49440095) {
             }
             if (angle_last < angle_test) {
-                swap(node_map[node_id][i], node_map[node_id][i - 1]);
+                swap(vehicle_node_map[node_id][i], vehicle_node_map[node_id][i - 1]);
                 if (node_id == 49440095) {
                 }
             } else {
@@ -199,7 +199,9 @@ public:
     google::sparse_hash_set<PedestrianRoad*> pedestrian_road_set;
     google::sparse_hash_set<Sidewalk*> sidewalk_set;
     google::sparse_hash_map<object_id_type,
-            vector<VehicleMapValue>> node_map;
+            vector<object_id_type>> pedestrian_node_map;
+    google::sparse_hash_map<object_id_type,
+            vector<VehicleMapValue>> vehicle_node_map;
     google::sparse_hash_map<string, pair<Sidewalk*,
             Sidewalk*>> finished_segments;
     vector<Geometry*> pedestrian_geometries;
@@ -217,7 +219,8 @@ public:
             location_handler(location_handler) {
 
         init_db(); 
-	node_map.set_deleted_key(-1);
+	pedestrian_node_map.set_deleted_key(-1);
+	vehicle_node_map.set_deleted_key(-1);
 	finished_segments.set_deleted_key("");
         vehicle_road_set.set_deleted_key(nullptr);
         pedestrian_road_set.set_deleted_key(nullptr);
@@ -260,11 +263,56 @@ public:
 	return vehicle_road;
     }*/
 
+    vector<Coordinate> segmentize(Coordinate start, Coordinate end,
+            double fraction_length) {
+
+        vector<Coordinate> splits;
+        LineSegment segment(start, end);
+        double length = go.haversine(start.x, start.y, end.x, end.y);
+        double fraction = fraction_length / length;
+        double position = fraction;
+
+        while (position < 1) {
+            Coordinate new_coord;
+            segment.pointAlong(position, new_coord);
+            splits.push_back(new_coord);
+            position += fraction;
+        }
+        return splits;
+    }
+
+    void test_segmetize(Geometry* geometry) {
+        cout << "test" << endl;
+        GeometryFactory factory;
+        LineString* linestring = dynamic_cast<LineString*>(geometry);
+        CoordinateSequence *coords;
+        coords = linestring->getCoordinates();
+        for (int i = 0; i < (coords->getSize() - 1); i++) {
+            Coordinate start = coords->getAt(i);
+            Coordinate end = coords->getAt(i + 1);
+            Point* end_point = factory.createPoint(end);
+
+            for (Coordinate coord : segmentize(start, end, 0.015)) {
+                Point* seg_point = factory.createPoint(coord);
+                LineString* ortho_line = go.orthogonal_line(seg_point, end_point, 0.030);
+                cout << ortho_line->toString() << endl;
+            }
+            
+        }
+
+        //const Coordinate *new_coordinate;
+        //new_coordinate = dynamic_cast<Point*>(point)->getCoordinate();
+        //int position = (reverse ? coords->getSize() : 0);
+        //coords->add(position, *new_coordinate, true);
+
+    }
+
     void insert_ways() {
         for (PedestrianRoad *road : pedestrian_road_set) {
             gid++;
             OGRFeature *feature;
             feature = OGRFeature::CreateFeature(layer_ways->GetLayerDefn());
+            test_segmetize(road->geometry);
 
             if (feature->SetGeometry(road->get_ogr_geom()) != OGRERR_NONE) {
                 cerr << "Failed to create geometry feature for way: ";
@@ -400,18 +448,18 @@ public:
         }
     }
 
-    void insert_in_node_map(object_id_type start_node,
+    void insert_in_vehicle_node_map(object_id_type start_node,
             object_id_type end_node,
             VehicleRoad* road) {
 	
         VehicleMapValue forward = VehicleMapValue(end_node, road, true);
         VehicleMapValue backward = VehicleMapValue(start_node, road, false);
-        node_map[start_node].push_back(forward);
-        node_map[end_node].push_back(backward);
-        if (node_map[end_node].size() > 1) {
+        vehicle_node_map[start_node].push_back(forward);
+        vehicle_node_map[end_node].push_back(backward);
+        if (vehicle_node_map[end_node].size() > 1) {
             order_clockwise(end_node);
         }
-        if (node_map[start_node].size() > 1) {
+        if (vehicle_node_map[start_node].size() > 1) {
             order_clockwise(start_node);
         }
     }

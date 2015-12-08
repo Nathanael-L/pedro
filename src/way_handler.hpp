@@ -16,9 +16,6 @@
 #include <osmium/osm/location.hpp>
 #include <osmium/handler/node_locations_for_ways.hpp>
 
-typedef handler::NodeLocationsForWays<index_pos_type,
-                                              index_neg_type>
-        location_handler_type;
 
 class WayHandler : public handler::Handler {
 
@@ -26,14 +23,48 @@ class WayHandler : public handler::Handler {
     location_handler_type& location_handler;
     GeomOperate go;
     geom::OGRFactory<> ogr_factory;
+    geom::GEOSFactory<> geos_factory;
     const bool left = true;
     const bool right = false;
     bool is_first_way = true;
 
+    const bool id_in_list(object_id_type osm_id,
+            vector<object_id_type> search_list) {
+        for (auto item : search_list) {
+            if (item == osm_id) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     void handle_pedestrian_road(Way& way) {
-        PedestrianRoad *pedestrian_road = new PedestrianRoad(way);
-        ds.pedestrian_road_set.insert(pedestrian_road);
-        ds.pedestrian_geometries.push_back(pedestrian_road->geometry);
+        object_id_type way_id = way.id();
+        auto map_entry = ds.pedestrian_node_map.find(way_id);
+        if (map_entry != ds.pedestrian_node_map.end()) {
+            auto first_node = way.nodes().begin();
+            auto last_node = way.nodes().begin() + 1;
+            for (auto node = last_node; (node < way.nodes().end()); node++) {
+                object_id_type node_id = node->ref();
+                if ((id_in_list(node_id, map_entry->second)) || 
+                        (last_node == way.nodes().end() - 1)) {
+                    geos_factory.linestring_start();
+                    size_t num_points = geos_factory.fill_linestring(
+                            first_node, last_node + 1);
+                    LineString* linestring = geos_factory.linestring_finish(
+                            num_points).release();
+                    first_node = node;
+                    PedestrianRoad* pedestrian_road = new PedestrianRoad(way, linestring);
+                    ds.pedestrian_road_set.insert(pedestrian_road);
+                    ds.pedestrian_geometries.push_back(pedestrian_road->geometry);
+                }
+                last_node++;
+            }
+        } else {
+            PedestrianRoad* pedestrian_road = new PedestrianRoad(way);
+            ds.pedestrian_road_set.insert(pedestrian_road);
+            ds.pedestrian_geometries.push_back(pedestrian_road->geometry);
+        }
     }
 
     void handle_vehicle_road(Way& way) {
@@ -61,7 +92,7 @@ class WayHandler : public handler::Handler {
             current_node = node.ref();
             if (prev_node != 0) {
                 if (!has_same_location(prev_node, current_node)) {
-                    ds.insert_in_node_map(prev_node, current_node, road);
+                    ds.insert_in_vehicle_node_map(prev_node, current_node, road);
                 }
             }
             prev_node = current_node;
@@ -89,93 +120,6 @@ public:
         }
         is_first_way = false;
     }
-//
-//    void construct_sidewalks(object_id_type current,
-//            object_id_type neighbour) {
-//
-//        Location current_location;
-//        Location neighbour_location;
-//        current_location = location_handler.get_node_location(current);
-//        neighbour_location = location_handler.get_node_location(neighbour);
-//        geos::geom::Geometry *left_sidewalk = nullptr;
-//
-//        left_sidewalk = go.parallel_line(current_location, neighbour_location,
-//                0.003, true, right);
-//        //right_sidewalk = go.parallel_line(current_location, neighbour_location,
-//        //        0.003, left);
-//        //ds.insert_sidewalk(left_sidewalk);
-//        //ds.insert_sidewalk(right_sidewalk);
-//        ds.sidewalk_geometries.push_back(left_sidewalk);
-//    }
-//
-//
-///* NOTE:
-// * mit den richtigen geometrien arbeiten nicht mit osm ids. gibt performance und ich kann die geometrien verändern...
-// *
-// */
-//
-//    void construct_convex_segment(object_id_type current,
-//            object_id_type prev_neighbour,
-//            object_id_type neighbour) {
-//        
-//        Location current_location;
-//        Location next_location;
-//        Location prev_location;
-//        Location vertical_point1;
-//        Location vertical_point2;
-//        geos::geom::Geometry *convex_segment;
-//        current_location = location_handler.get_node_location(current);
-//        next_location = location_handler.get_node_location(neighbour);
-//        prev_location = location_handler.get_node_location(prev_neighbour);
-//        double angle;
-//        angle = go.angle(prev_location, current_location, next_location);
-//        if (angle > 180) {
-//            vertical_point1 = go.vertical_point(current_location, prev_location,
-//                    0.003, false, left);
-//            vertical_point2 = go.vertical_point(current_location,
-//                    next_location, 0.003, false, right);
-//        } else {
-//            vertical_point1 = go.vertical_point(current_location, prev_location,
-//                    0.003, false, right);
-//            vertical_point2 = go.vertical_point(current_location, next_location,
-//                    0.003, false, left);
-//        }
-//            convex_segment = go.connect_locations(vertical_point1,
-//                    vertical_point2);
-//            ds.sidewalk_geometries.push_back(convex_segment);
-//            //ds.insert_sidewalk(convex_segment);
-//            string ori = to_string(static_cast<int>(ceil(go.orientation(current_location, prev_location)))) + to_string(static_cast<int>(ceil(go.orientation(current_location, next_location))));
-//            //ds.insert_node(current_location, current, ori.c_str(), angle);
-//        
-//        
-//        
-//        /**/
-//    }
-//
-//    void generate_sidewalks() {
-//        object_id_type current;
-//        object_id_type neighbour;
-//        object_id_type prev_neighbour;
-//
-//        for (auto node : ds.node_map) {
-//            if (node.first == 1763864221) {
-//
-//
-//            }
-//            current = node.first;
-//            int count_neighbours = node.second.size();
-//            for (int i = 0; i < (count_neighbours); ++i) {
-//                neighbour = node.second[i].first;
-//                int prev_index = (i - 1 + count_neighbours) % count_neighbours;
-//                prev_neighbour = node.second[prev_index].first; 
-//                
-//                //if (!is_constructed(current, neighbour)) {
-//                    construct_sidewalks(current, neighbour);
-//                //}
-//                construct_convex_segment(current, prev_neighbour, neighbour); 
-//            }
-//        }
-//    }
 };
 
 #endif /* WAYHANDLER_HPP_ */
