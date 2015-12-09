@@ -135,9 +135,9 @@ class DataStorage {
         //test what 4th parameter does
 
         create_table(layer_intersects, "intersects", wkbPoint);
-        create_field(layer_intersects, "roads", OFTString, 50);
+        create_field(layer_intersects, "roads", OFTString, 50);*/
 
-        create_table(layer_sidewalks, "sidewalks", wkbMultiLineString);*/
+        create_table(layer_sidewalks, "sidewalks", wkbMultiLineString);
     }
 
     void order_clockwise(object_id_type node_id) {
@@ -210,6 +210,7 @@ public:
     Geometry *geos_pedestrian_net;
     Geometry *geos_vehicle_net;
     Geometry *geos_sidewalk_net;
+    geos::index::strtree::STRtree pedestr_buffer_tree;
     geos::index::strtree::STRtree sidewalk_tree;
     //geos::geom::GeometryFactory geos_factory;
 
@@ -235,8 +236,8 @@ public:
         layer_ways->CommitTransaction();
         /*layer_nodes->CommitTransaction();*/
         layer_vehicle->CommitTransaction();
-        /*layer_sidewalks->CommitTransaction();
-        layer_intersects->CommitTransaction();*/
+        layer_sidewalks->CommitTransaction();
+        /*layer_intersects->CommitTransaction();*/
 
         OGRDataSource::DestroyDataSource(data_source);
         OGRCleanupAll();
@@ -262,6 +263,7 @@ public:
         
 	return vehicle_road;
     }*/
+//HIER
 
     vector<Coordinate> segmentize(Coordinate start, Coordinate end,
             double fraction_length) {
@@ -295,9 +297,9 @@ public:
             for (Coordinate coord : segmentize(start, end, 0.015)) {
                 Point* seg_point = factory.createPoint(coord);
                 LineString* ortho_line = go.orthogonal_line(seg_point, end_point, 0.030);
+                insert_sidewalk(go.geos2ogr(ortho_line));
                 cout << ortho_line->toString() << endl;
             }
-            
         }
 
         //const Coordinate *new_coordinate;

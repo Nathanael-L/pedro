@@ -19,8 +19,14 @@
 #include <osmium/geom/geos.hpp>
 #include <osmium/geom/wkt.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+//#include <geos.h>
+#include <geos/geom/Coordinate.h>
+#include <geos/geom/CoordinateFilter.h>
+#include <geos/geom/CoordinateArraySequence.h>
+#include <geos/geom/CoordinateArraySequenceFactory.h>
+
 #include <geos/geom/GeometryCollection.h>
-#include <geos/geom/PrecisionModel.h>
+//#include <geos/geom/PrecisionModel.h>
 #include <geos/geom/GeometryFactory.h>
 #include <geos/geom/LineSegment.h>
 #include <geos/index/strtree/STRtree.h>
@@ -29,6 +35,7 @@
 #include <geos/io/WKTReader.h>
 #include <google/sparse_hash_set>
 #include <google/sparse_hash_map>
+
 
 using namespace std;
 using namespace osmium;
@@ -39,6 +46,7 @@ using geos::geom::LineSegment;
 using geos::geom::Point;
 using geos::geom::GeometryFactory;
 using geos::geom::CoordinateSequence;
+using geos::geom::CoordinateArraySequence;
 
 
 typedef index::map::Dummy<unsigned_object_id_type,

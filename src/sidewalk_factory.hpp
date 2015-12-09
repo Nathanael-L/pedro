@@ -1,11 +1,6 @@
 
 
 
-#include <geos/geom/Coordinate.h>
-#include <geos/geom/CoordinateFilter.h>
-#include <geos/geom/CoordinateArraySequence.h>
-#include <geos/geom/CoordinateArraySequenceFactory.h>
-
 class SidewalkFactory {
 
     DataStorage& ds;

@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <math.h>
 #include <geos/geom/GeometryFactory.h>
-//#include <geos/geom>
 
 struct LonLat {
     double lon;
@@ -225,34 +224,6 @@ public:
 	return point;
     }
 
-    LineString* connect_points(Point* point1, Point* point2) {
-        CoordinateSequence *coords = nullptr;
-        const Coordinate* coordinate1;
-        const Coordinate* coordinate2;
-        coordinate1 = point1->getCoordinate();
-        coordinate2 = point2->getCoordinate();
-        coords->add(*coordinate1);
-        coords->add(*coordinate2);
-        return geos_factory.createLineString(coords);
-    }
-
-    LineString* connect_locations(Location location1, Location location2) {
-        Geometry* geos_line = nullptr;
-        string target_wkt = "LINESTRING (";
-        target_wkt += to_string(location1.lon()) + " ";
-        target_wkt += to_string(location1.lat()) + ", ";
-        target_wkt += to_string(location2.lon()) + " ";
-        target_wkt += to_string(location2.lat()) + ")";
-        const string wkt = target_wkt;
-        geos_line = geos_wkt_reader.read(wkt);
-        
-        if (!geos_line) {
-            cerr << "Failed to create from wkt.";
-            exit(1);
-        }
-        return dynamic_cast<LineString*>(geos_line);
-    }
-
     LineString* parallel_line(Location location1,
             Location location2, double distance, bool left = true) {
 
@@ -273,6 +244,36 @@ public:
         right_point = vertical_point(point1, point2, distance, false);
         ortho_line = connect_points(left_point, right_point);        
         return ortho_line;
+    }
+
+    LineString* connect_points(Point* point1, Point* point2) {
+        
+        const Coordinate* coordinate1;
+        const Coordinate* coordinate2;
+        coordinate1 = point1->getCoordinate();
+        coordinate2 = point2->getCoordinate();
+        vector<Coordinate>* coord_v = new vector<Coordinate>();
+        coord_v->push_back(*coordinate1);
+        coord_v->push_back(*coordinate2);
+        const CoordinateArraySequence coords = CoordinateArraySequence(coord_v);
+        return geos_factory.createLineString(coords);
+    }
+
+    LineString* connect_locations(Location location1, Location location2) {
+        Geometry* geos_line = nullptr;
+        string target_wkt = "LINESTRING (";
+        target_wkt += to_string(location1.lon()) + " ";
+        target_wkt += to_string(location1.lat()) + ", ";
+        target_wkt += to_string(location2.lon()) + " ";
+        target_wkt += to_string(location2.lat()) + ")";
+        const string wkt = target_wkt;
+        geos_line = geos_wkt_reader.read(wkt);
+        
+        if (!geos_line) {
+            cerr << "Failed to create from wkt.";
+            exit(1);
+        }
+        return dynamic_cast<LineString*>(geos_line);
     }
 
     OGRGeometry* ogr_connect_locations(Location location1, Location location2) {
