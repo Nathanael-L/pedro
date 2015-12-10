@@ -1,4 +1,9 @@
 /***
+ * data_storage.hpp
+ *
+ *  Created on: Nov 9, 2015
+ *      Author: nathanael
+ *
  * Stores all important Data over the runtime and handle the database.
  */
 
@@ -271,15 +276,16 @@ public:
         vector<Coordinate> splits;
         LineSegment segment(start, end);
         double length = go.haversine(start.x, start.y, end.x, end.y);
+        cout << "length" << length << endl;
         double fraction = fraction_length / length;
-        double position = fraction;
+        double position = 0;
 
-        while (position < 1) {
+        do {
             Coordinate new_coord;
             segment.pointAlong(position, new_coord);
             splits.push_back(new_coord);
             position += fraction;
-        }
+        } while (position < 1);
         return splits;
     }
 

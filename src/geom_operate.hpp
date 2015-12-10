@@ -1,5 +1,6 @@
-/*
- * geometricoperations.hpp
+/***
+ * geom_operate.hpp
+ * former: geometricoperations.hpp
  *
  *  Created on: Nov 11, 2015
  *      Author: nathanael

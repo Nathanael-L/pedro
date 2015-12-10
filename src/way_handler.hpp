@@ -1,12 +1,12 @@
 /***
+ * way_handler.hpp
  *
- *
- *
- *
+ *  Created on: Nov 9, 2015
+ *      Author: nathanael
  */
 
-#ifndef WAYHANDLER_HPP_
-#define WAYHANDLER_HPP_
+#ifndef WAY_HANDLER_HPP_
+#define WAY_HANDLER_HPP_
 
 #include <iostream>
 #include <osmium/geom/geos.hpp>
@@ -122,4 +122,4 @@ public:
     }
 };
 
-#endif /* WAYHANDLER_HPP_ */
+#endif /* WAY_HANDLER_HPP_ */

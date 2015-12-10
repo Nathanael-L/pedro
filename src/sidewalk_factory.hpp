@@ -1,5 +1,13 @@
+/***
+ * sidewalk_factory.hpp
+ *
+ *  Created on: Nov 24, 2015
+ *      Author: nathanael
+ */
 
 
+#ifndef SIDEWALK_FACTORY_HPP_
+#define SIDEWALK_FACTORY_HPP_
 
 class SidewalkFactory {
 
@@ -278,3 +286,5 @@ public:
         }
     }
 */
+
+#endif /* SIDEWALK_FACTORY_HPP_ */
