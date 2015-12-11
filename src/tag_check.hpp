@@ -53,6 +53,9 @@ public:
     }
 
     static bool is_vehicle(const osmium::OSMObject &osm_object) {
+        if (is_polygon(osm_object)) {
+            return false;
+        }
         const char* highway = osm_object.get_value_by_key("highway");
         string type_list[] = {
             "motorway", "trunk", "primary", "secondary", "tertiary",
@@ -68,6 +71,9 @@ public:
     }
 
     static bool is_pedestrian(const osmium::OSMObject &osm_object) {
+        if (is_polygon(osm_object)) {
+            return false;
+        }
         const char* highway = osm_object.get_value_by_key("highway");
         string type_list[] = {
             "pedestrian", "footway", "steps", "path", "track", "living_street"
@@ -89,31 +95,14 @@ public:
         }
     }
 
-    static bool is_polygon(const osmium::OSMObject &osm_object,
-                                bool is_relation) {
-        /*not ready yet*/
-        if (is_relation) {
-            const char* type = osm_object.tags().get_value_by_key("type");
-            if (!type) {
-                return false;
-            }
-            if (strcmp(type, "multipolygon")) {
-                return false;
-            }
+    static bool is_polygon(const osmium::OSMObject &osm_object) {
+
+        //more polygons?
+        const char* area = osm_object.get_value_by_key("area");
+        if (!area) {
+            return false;
         }
-        const char* natural = osm_object.get_value_by_key("natural");
-        if ((natural) && (!strcmp(natural, "water"))) {
-            return true;
-        }
-        const char* waterway = osm_object.get_value_by_key("waterway");
-        if (waterway) {
-            return true;
-        }
-        const char* landuse = osm_object.get_value_by_key("landuse");
-        if ((landuse) && (!strcmp(landuse, "reservoir"))) {
-            return true;
-        }
-        if ((landuse) && (!strcmp(landuse, "basin"))) {
+        if (strcmp(area, "yes")) {
             return true;
         }
         return false;

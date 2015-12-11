@@ -39,14 +39,16 @@
 
 using namespace std;
 using namespace osmium;
-using geos::geom::Coordinate;
+using namespace geos::geom;
+using namespace geos::index::strtree;
+/*using geos::geom::Coordinate;
 using geos::geom::Geometry;
 using geos::geom::LineString;
 using geos::geom::LineSegment;
 using geos::geom::Point;
 using geos::geom::GeometryFactory;
 using geos::geom::CoordinateSequence;
-using geos::geom::CoordinateArraySequence;
+using geos::geom::CoordinateArraySequence;*/
 
 
 typedef index::map::Dummy<unsigned_object_id_type,
@@ -60,6 +62,7 @@ typedef handler::NodeLocationsForWays<index_pos_type, index_neg_type>
 #include "tag_check.hpp"
 #include "road.hpp"
 #include "data_storage.hpp"
+#include "contrast.hpp"
 #include "prepare_handler.hpp"
 #include "way_handler.hpp"
 #include "sidewalk_factory.hpp"
@@ -119,6 +122,7 @@ int main(int argc, char* argv[]) {
     GeomOperate go;
     SidewalkFactory sf(ds, location_handler);
     
+    
     cerr << "start reading osm ..." << endl;
     io::Reader reader1(input_filename);
     PrepareHandler prepare_handler(ds, location_handler);
@@ -142,6 +146,8 @@ int main(int argc, char* argv[]) {
 
     //ds.union_vehicle_geometries();
     //ds.union_pedestrian_geometries();
+    Contrast contrast = Contrast(ds);
+    contrast.check_sidewalks();
     cerr << "vehicle_vehicle_node_map size: " << ds.vehicle_node_map.size() << endl;
     ds.insert_vehicle();
     ds.insert_sidewalks();

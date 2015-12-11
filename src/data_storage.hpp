@@ -48,6 +48,7 @@ class DataStorage {
     OGRLayer *layer_nodes;
     OGRLayer *layer_sidewalks;
     OGRLayer *layer_intersects;
+    OGRLayer *layer_orthos;
     geom::OGRFactory<> ogr_factory;
     geom::GEOSFactory<> geos_factory;
     string output_database;
@@ -136,13 +137,14 @@ class DataStorage {
         /*create_table(layer_nodes, "nodes", wkbPoint);
         create_field(layer_nodes, "osm_id", OFTString, 14);
         create_field(layer_nodes, "orientations", OFTString, 7);
-        create_field(layer_nodes, "angle", OFTReal, 10);
-        //test what 4th parameter does
+        create_field(layer_nodes, "angle", OFTReal, 10);*/
 
-        create_table(layer_intersects, "intersects", wkbPoint);
-        create_field(layer_intersects, "roads", OFTString, 50);*/
+        create_table(layer_intersects, "intersects", wkbMultiLineString);
+        create_field(layer_intersects, "length", OFTReal);
+        create_field(layer_intersects, "ratio", OFTReal);
 
         create_table(layer_sidewalks, "sidewalks", wkbMultiLineString);
+        create_table(layer_orthos, "orthos", wkbMultiLineString);
     }
 
     void order_clockwise(object_id_type node_id) {
@@ -215,7 +217,7 @@ public:
     Geometry *geos_pedestrian_net;
     Geometry *geos_vehicle_net;
     Geometry *geos_sidewalk_net;
-    geos::index::strtree::STRtree pedestr_buffer_tree;
+    geos::index::strtree::STRtree ortho_tree;
     geos::index::strtree::STRtree sidewalk_tree;
     //geos::geom::GeometryFactory geos_factory;
 
@@ -242,7 +244,8 @@ public:
         /*layer_nodes->CommitTransaction();*/
         layer_vehicle->CommitTransaction();
         layer_sidewalks->CommitTransaction();
-        /*layer_intersects->CommitTransaction();*/
+        layer_intersects->CommitTransaction();
+        layer_orthos->CommitTransaction();
 
         OGRDataSource::DestroyDataSource(data_source);
         OGRCleanupAll();
@@ -268,59 +271,13 @@ public:
         
 	return vehicle_road;
     }*/
-//HIER
 
-    vector<Coordinate> segmentize(Coordinate start, Coordinate end,
-            double fraction_length) {
-
-        vector<Coordinate> splits;
-        LineSegment segment(start, end);
-        double length = go.haversine(start.x, start.y, end.x, end.y);
-        cout << "length" << length << endl;
-        double fraction = fraction_length / length;
-        double position = 0;
-
-        do {
-            Coordinate new_coord;
-            segment.pointAlong(position, new_coord);
-            splits.push_back(new_coord);
-            position += fraction;
-        } while (position < 1);
-        return splits;
-    }
-
-    void test_segmetize(Geometry* geometry) {
-        cout << "test" << endl;
-        GeometryFactory factory;
-        LineString* linestring = dynamic_cast<LineString*>(geometry);
-        CoordinateSequence *coords;
-        coords = linestring->getCoordinates();
-        for (int i = 0; i < (coords->getSize() - 1); i++) {
-            Coordinate start = coords->getAt(i);
-            Coordinate end = coords->getAt(i + 1);
-            Point* end_point = factory.createPoint(end);
-
-            for (Coordinate coord : segmentize(start, end, 0.015)) {
-                Point* seg_point = factory.createPoint(coord);
-                LineString* ortho_line = go.orthogonal_line(seg_point, end_point, 0.030);
-                insert_sidewalk(go.geos2ogr(ortho_line));
-                cout << ortho_line->toString() << endl;
-            }
-        }
-
-        //const Coordinate *new_coordinate;
-        //new_coordinate = dynamic_cast<Point*>(point)->getCoordinate();
-        //int position = (reverse ? coords->getSize() : 0);
-        //coords->add(position, *new_coordinate, true);
-
-    }
 
     void insert_ways() {
         for (PedestrianRoad *road : pedestrian_road_set) {
             gid++;
             OGRFeature *feature;
             feature = OGRFeature::CreateFeature(layer_ways->GetLayerDefn());
-            test_segmetize(road->geometry);
 
             if (feature->SetGeometry(road->get_ogr_geom()) != OGRERR_NONE) {
                 cerr << "Failed to create geometry feature for way: ";
@@ -367,17 +324,33 @@ public:
         }
     }
 
-    void insert_intersect(Location location, const char *roadnames) {
+    void insert_intersect(Geometry* geometry, double length, double ratio) {
         OGRFeature *feature;
         feature = OGRFeature::CreateFeature(layer_intersects->GetLayerDefn());
         
-        OGRPoint *point = ogr_factory.create_point(location).release();
-        if (feature->SetGeometry(point) != OGRERR_NONE) {
+        OGRGeometry *sidewalk = go.geos2ogr(geometry);
+        if (feature->SetGeometry(sidewalk) != OGRERR_NONE) {
             cerr << "Failed to create geometry feature for intersects: ";
         }
-        feature->SetField("roads", roadnames);
+        feature->SetField("length", length);
+        feature->SetField("ratio", ratio);
 
         if (layer_intersects->CreateFeature(feature) != OGRERR_NONE) {
+            cerr << "Failed to create ways feature." << endl;
+        }
+        OGRFeature::DestroyFeature(feature);
+    }
+
+    void insert_orthos(Geometry* geometry) {
+        OGRFeature *feature;
+        feature = OGRFeature::CreateFeature(layer_orthos->GetLayerDefn());
+        
+        OGRGeometry *sidewalk = go.geos2ogr(geometry);
+        if (feature->SetGeometry(sidewalk) != OGRERR_NONE) {
+            cerr << "Failed to create geometry feature for orthos: ";
+        }
+
+        if (layer_orthos->CreateFeature(feature) != OGRERR_NONE) {
             cerr << "Failed to create ways feature." << endl;
         }
         OGRFeature::DestroyFeature(feature);
@@ -433,6 +406,7 @@ public:
 
     void insert_sidewalks() {
 
+        /*c for display
         for (Sidewalk *road : sidewalk_set) {
             gid++;
             OGRFeature *feature;
@@ -450,6 +424,21 @@ public:
             feature->SetField("osm_id", road->osm_id.c_str());
 
             if (layer_ways->CreateFeature(feature) != OGRERR_NONE) {
+                cerr << "Failed to create ways feature." << endl;
+            }
+            OGRFeature::DestroyFeature(feature);
+        }*/
+        for (Sidewalk *road : sidewalk_set) {
+            gid++;
+            OGRFeature *feature;
+            feature = OGRFeature::CreateFeature(layer_sidewalks->GetLayerDefn());
+
+            if (feature->SetGeometry(road->get_ogr_geom()) != OGRERR_NONE) {
+                cerr << "Failed to create geometry feature for sidewalk: ";
+            }
+
+
+            if (layer_sidewalks->CreateFeature(feature) != OGRERR_NONE) {
                 cerr << "Failed to create ways feature." << endl;
             }
             OGRFeature::DestroyFeature(feature);

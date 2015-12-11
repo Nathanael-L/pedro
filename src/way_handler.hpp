@@ -19,11 +19,12 @@
 
 class WayHandler : public handler::Handler {
 
-    DataStorage& ds;
-    location_handler_type& location_handler;
-    GeomOperate go;
     geom::OGRFactory<> ogr_factory;
     geom::GEOSFactory<> geos_factory;
+    location_handler_type& location_handler;
+    DataStorage& ds;
+    GeomOperate go;
+    Contrast contrast = Contrast(ds);
     const bool left = true;
     const bool right = false;
     bool is_first_way = true;
@@ -37,7 +38,7 @@ class WayHandler : public handler::Handler {
         }
         return false;
     }
-    
+
     void handle_pedestrian_road(Way& way) {
         object_id_type way_id = way.id();
         auto map_entry = ds.pedestrian_node_map.find(way_id);
@@ -57,13 +58,18 @@ class WayHandler : public handler::Handler {
                     PedestrianRoad* pedestrian_road = new PedestrianRoad(way, linestring);
                     ds.pedestrian_road_set.insert(pedestrian_road);
                     ds.pedestrian_geometries.push_back(pedestrian_road->geometry);
+                    contrast.create_orthogonals(linestring);
                 }
                 last_node++;
             }
         } else {
-            PedestrianRoad* pedestrian_road = new PedestrianRoad(way);
+            LineString* linestring = nullptr;
+            linestring = geos_factory.create_linestring(way).release();
+            PedestrianRoad* pedestrian_road = new PedestrianRoad(way,
+                    linestring);
             ds.pedestrian_road_set.insert(pedestrian_road);
             ds.pedestrian_geometries.push_back(pedestrian_road->geometry);
+            contrast.create_orthogonals(linestring);
         }
     }
 

@@ -17,8 +17,11 @@
 
 class Road {
 
-    GeomOperate go;
     geom::GEOSFactory<> geos_factory;
+
+protected:
+
+    GeomOperate go;
 
 public: 
 
@@ -39,7 +42,7 @@ public:
             cerr << " GEOS ERROR at way: " << way.id() << endl;
         }
 
-        length = geometry->getLength();
+        length = go.get_length(geometry);
 	if (!geometry) {
 	    cerr << "bad reference for geometry" << endl;
 	    exit(1);
@@ -50,7 +53,7 @@ public:
         name = TagCheck::get_name(way);
         type = TagCheck::get_highway_type(way);
         this->geometry = geometry;
-        length = geometry->getLength();
+        length = go.get_length(geometry);
 	if (!geometry) {
 	    cerr << "bad reference for geometry" << endl;
 	    exit(1);
@@ -124,7 +127,7 @@ public:
         this->name = vehicle_road->name;
         this->geometry = geometry;
         this->type = vehicle_road->type;
-        this->length = geometry->getLength();
+        this->length = go.get_length(geometry);
         this->osm_id = vehicle_road->osm_id;
     }        
 };

@@ -355,15 +355,22 @@ public:
     }*/
 
     double get_length(Geometry *geometry) {
+        double length = 0;
         if (geometry->getGeometryType() == "LineString") {
-            LineString *linestring = dynamic_cast<LineString*>(geometry);
-            CoordinateSequence *coords = linestring->getCoordinates();
-            /*for (auto coord : coords) {
-                cout << coord.getX() << endl;
-                cout << coord.getY() << endl;
-            }*/
-             //TODO
+            LineString* linestring = dynamic_cast<LineString*>(geometry);
+            CoordinateSequence *coords;
+            coords = linestring->getCoordinates();
+            for (int i = 0; i < (coords->getSize() - 1); i++) {
+                Coordinate start = coords->getAt(i);
+                Coordinate end = coords->getAt(i + 1);
+                length += haversine(start.x, start.y, end.x, end.y);
+            }
+        } else {
+            cerr << "error while get_length, geometry not LineString but "
+                    << geometry->getGeometryType() << endl;
+            exit(1);
         }
+        return length;
     }
 
     OGRGeometry* geos2ogr(const Geometry* g)
