@@ -97,7 +97,9 @@ class SidewalkFactory {
         string connection = get_connection_string(current, neighbour);
         if (!is_constructed(connection)) {
             segment = construct_segment(current, neighbour, left);
-            sidewalk = new Sidewalk(segment, vehicle_road);
+            SidewalkID sid(node.second[i].from, 
+                    node.second[i].to, left, 0);
+            sidewalk = new Sidewalk(sid, segment, vehicle_road);
             ds.sidewalk_set.insert(sidewalk);
             reverse.push_back(false);
         } else {
@@ -261,30 +263,7 @@ public:
                 }
             }
         }
-        //ds.union_sidewalk_geometries();
-        //intersect_segments(ds.geos_sidewalk_net);
     }
 };
-/*
-    void intersect_segments(const Geometry *net) {
-        Geometry *intersector;
-        geos::geom::CoordinateArraySequenceFactory coord_factory;
-        for (auto segment1 : ds.sidewalk_geometries) {
-            for (auto segment2 : ds.sidewalk_geometries) {
-                if (segment1->intersects(segment2)) {
-                    intersector = segment1->intersection(segment2);
-                    Geometry *new_line1, *new_line2;
-                    CoordinateSequence *coords1;
-                    coords1 = segment1->getCoordinates();
-                    if (intersector->getGeometryType() == "Point") {
-                        const Coordinate *new_coordinate;
-                        new_coordinate = dynamic_cast<Point*>(intersector)->getCoordinate();
-                        coords1->setAt(*new_coordinate, 1);
-                    }
-                }
-            }
-        }
-    }
-*/
 
 #endif /* SIDEWALK_FACTORY_HPP_ */

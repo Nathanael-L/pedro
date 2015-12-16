@@ -304,6 +304,7 @@ public:
         return ogr_line;
     }
 
+    /* unused */
     Geometry* union_geometries(vector<Geometry*>
                 geom_vector) { 
         

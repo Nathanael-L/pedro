@@ -25,13 +25,17 @@ typedef google::sparse_hash_map<object_id_type,
         vehicle_node_map_iterator_type;*/
 
 struct VehicleMapValue {
+    int from;
+    int to;
     object_id_type node_id;
     VehicleRoad* vehicle_road;
     bool forward;
 
-    VehicleMapValue(object_id_type node_id, VehicleRoad* vehicle_road,
-            bool forward) {
+    VehicleMapValue(object_id_type node_id, int from, int to,
+            VehicleRoad* vehicle_road, bool forward) {
 
+        this->from = from;
+        this->to = to;
         this->node_id = node_id;
         this->vehicle_road = vehicle_road;
         this->forward = forward;
@@ -57,6 +61,7 @@ class DataStorage {
     location_handler_type &location_handler;
     GeomOperate go;
     int gid;
+    int link_counter;
 
     void create_table(OGRLayer *&layer, const char *name,
             OGRwkbGeometryType geometry) {
@@ -211,12 +216,6 @@ public:
             vector<VehicleMapValue>> vehicle_node_map;
     google::sparse_hash_map<string, pair<Sidewalk*,
             Sidewalk*>> finished_segments;
-    vector<Geometry*> pedestrian_geometries;
-    vector<Geometry*> vehicle_geometries;
-    vector<Geometry*> sidewalk_geometries;
-    Geometry *geos_pedestrian_net;
-    Geometry *geos_vehicle_net;
-    Geometry *geos_sidewalk_net;
     geos::index::strtree::STRtree ortho_tree;
     geos::index::strtree::STRtree sidewalk_tree;
     //geos::geom::GeometryFactory geos_factory;
@@ -234,6 +233,7 @@ public:
         pedestrian_road_set.set_deleted_key(nullptr);
         sidewalk_set.set_deleted_key(nullptr);
         gid = 0;
+        link_counter = 0;
         //pedestrian_geometries = new vector<Geometry*>();
         //sidewalk_geometries = new vector<Geometry*>();
         //vehicle_geometries = new vector<Geometry*>();
@@ -376,18 +376,6 @@ public:
         OGRFeature::DestroyFeature(feature);
     }
 
-    void union_pedestrian_geometries() {
-        geos_pedestrian_net = go.union_geometries(pedestrian_geometries);
-    }
-
-    void union_vehicle_geometries() {
-        geos_vehicle_net = go.union_geometries(vehicle_geometries);
-    }
-
-    void union_sidewalk_geometries() {
-        geos_sidewalk_net = go.union_geometries(sidewalk_geometries);
-    }
-
     void insert_sidewalk(OGRGeometry* sidewalk) {
         OGRFeature* feature;
         feature = OGRFeature::CreateFeature(layer_sidewalks->GetLayerDefn());
@@ -445,19 +433,35 @@ public:
         }
     }
 
-    void insert_in_vehicle_node_map(object_id_type start_node,
-            object_id_type end_node,
+    void insert_in_vehicle_node_map(object_id_type start_node, object_id_type end_node,
             VehicleRoad* road) {
-	
-        VehicleMapValue forward = VehicleMapValue(end_node, road, true);
-        VehicleMapValue backward = VehicleMapValue(start_node, road, false);
+
+        cout << vehicle_node_map[start_node].size();
+        bool backlink_is_new = (vehicle_node_map[start_node].size() == 0);
+        bool forelink_is_new = (vehicle_node_map[end_node].size() == 0);
+        int backlink_id = 0;
+        int forelink_id = 0;
+        if (backlink_is_new) {
+            link_counter++;
+            backlink_id = link_counter;
+        } else {
+            backlink_id = vehicle_node_map[start_node][0].from;
+        }
+        if (forelink_is_new) {
+            link_counter++;
+            forelink_id = link_counter;
+        } else {
+            forelink_id = vehicle_node_map[end_node][0].from;
+        }
+        VehicleMapValue backward = VehicleMapValue(start_node, forelink_id, backlink_id, road, false);
+        VehicleMapValue forward = VehicleMapValue(end_node, backlink_id, forelink_id, road, true);
         vehicle_node_map[start_node].push_back(forward);
         vehicle_node_map[end_node].push_back(backward);
-        if (vehicle_node_map[end_node].size() > 1) {
-            order_clockwise(end_node);
-        }
         if (vehicle_node_map[start_node].size() > 1) {
             order_clockwise(start_node);
+        }
+        if (vehicle_node_map[end_node].size() > 1) {
+            order_clockwise(end_node);
         }
     }
 };

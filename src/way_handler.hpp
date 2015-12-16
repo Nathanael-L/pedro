@@ -55,9 +55,8 @@ class WayHandler : public handler::Handler {
                     LineString* linestring = geos_factory.linestring_finish(
                             num_points).release();
                     first_node = node;
-                    PedestrianRoad* pedestrian_road = new PedestrianRoad(way, linestring);
+                    PedestrianRoad* pedestrian_road = new PedestrianRoad(0, way, linestring);
                     ds.pedestrian_road_set.insert(pedestrian_road);
-                    ds.pedestrian_geometries.push_back(pedestrian_road->geometry);
                     contrast.create_orthogonals(linestring);
                 }
                 last_node++;
@@ -65,18 +64,16 @@ class WayHandler : public handler::Handler {
         } else {
             LineString* linestring = nullptr;
             linestring = geos_factory.create_linestring(way).release();
-            PedestrianRoad* pedestrian_road = new PedestrianRoad(way,
+            PedestrianRoad* pedestrian_road = new PedestrianRoad(0, way,
                     linestring);
             ds.pedestrian_road_set.insert(pedestrian_road);
-            ds.pedestrian_geometries.push_back(pedestrian_road->geometry);
             contrast.create_orthogonals(linestring);
         }
     }
 
     void handle_vehicle_road(Way& way) {
-        VehicleRoad *vehicle_road = new VehicleRoad(way);
+        VehicleRoad *vehicle_road = new VehicleRoad(0, way);
         ds.vehicle_road_set.insert(vehicle_road);
-        ds.vehicle_geometries.push_back(vehicle_road->geometry);
 	iterate_over_nodes(way, vehicle_road);
     }
     
@@ -97,6 +94,7 @@ class WayHandler : public handler::Handler {
         for (NodeRef node : way.nodes()) {
             current_node = node.ref();
             if (prev_node != 0) {
+                
                 if (!has_same_location(prev_node, current_node)) {
                     ds.insert_in_vehicle_node_map(prev_node, current_node, road);
                 }
