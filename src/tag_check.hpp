@@ -162,6 +162,15 @@ public:
         }
     }
 
+    static const bool node_is_crossing(const osmium::OSMObject &osm_object) {
+        const char *highway = osm_object.get_value_by_key("highway");
+        if ((highway) && (!strcmp(highway, "crossing"))) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
     static const bool is_crossing(const osmium::OSMObject &osm_object) {
         const char *footway = osm_object.get_value_by_key("footway");
         if ((footway) && (!strcmp(footway, "crossing"))) {

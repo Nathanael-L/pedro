@@ -436,7 +436,6 @@ public:
     void insert_in_vehicle_node_map(object_id_type start_node, object_id_type end_node,
             VehicleRoad* road) {
 
-        cout << vehicle_node_map[start_node].size();
         bool backlink_is_new = (vehicle_node_map[start_node].size() == 0);
         bool forelink_is_new = (vehicle_node_map[end_node].size() == 0);
         int backlink_id = 0;

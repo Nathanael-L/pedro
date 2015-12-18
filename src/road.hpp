@@ -184,7 +184,6 @@ public:
 
     Sidewalk(SidewalkID sid, Geometry *geometry, VehicleRoad *vehicle_road) {
         this->id = get_id(sid);
-        cout << id << endl;
         this->name = vehicle_road->name;
         this->geometry = geometry;
         this->type = vehicle_road->type;
