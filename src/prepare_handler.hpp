@@ -35,6 +35,14 @@ public:
 	temp_node_map.set_deleted_key(-1);
     }
 
+    void node(Node& node) {
+        if (TagCheck::node_is_crossing(node)) {
+            string type = TagCheck::get_crossing_type(node);
+            CrossingPoint* crossing = new CrossingPoint(type);
+            ds.crossing_node_map[node.id()] = crossing;
+        }        
+    }
+
     void way(Way& way) {
         if (is_first_way) {
             cerr << "... prepare ways ..." << endl;

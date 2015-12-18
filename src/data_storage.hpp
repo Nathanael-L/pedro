@@ -29,16 +29,19 @@ struct VehicleMapValue {
     int to;
     object_id_type node_id;
     VehicleRoad* vehicle_road;
-    bool forward;
+    bool is_foreward;
+    bool is_crossing;
 
     VehicleMapValue(object_id_type node_id, int from, int to,
-            VehicleRoad* vehicle_road, bool forward) {
+            VehicleRoad* vehicle_road, bool is_foreward, bool is_crossing) {
 
         this->from = from;
         this->to = to;
         this->node_id = node_id;
         this->vehicle_road = vehicle_road;
-        this->forward = forward;
+        this->is_foreward = is_foreward;
+        this->is_crossing = is_crossing;
+
     }
 };
 
@@ -178,32 +181,6 @@ class DataStorage {
         }
     }
         
-//    const string get_timestamp(Timestamp timestamp) {
-//        string time_str = timestamp.to_iso();
-//        time_str.replace(10, 1, " ");
-//        time_str.replace(19, 1, "");
-//        return time_str;
-//    }
-//
-//    string width2string(float &width) {
-//        int rounded_width = static_cast<int> (round(width * 10));
-//        string width_str = to_string(rounded_width);
-//        if (width_str.length() == 1) {
-//            width_str.insert(width_str.begin(), '0');
-//        }
-//        width_str.insert(width_str.end() - 1, '.');
-//        return width_str;
-//    }
-//
-//    void destroy_polygons() {
-//        for (auto polygon : prepared_polygon_set) {
-//            delete polygon;
-//        }
-//        for (auto multipolygon : multipolygon_set) {
-//            delete multipolygon;
-//        }
-//    }
-//
 public:
 
     OGRSpatialReference sparef_wgs84;
@@ -214,11 +191,16 @@ public:
             vector<object_id_type>> pedestrian_node_map;
     google::sparse_hash_map<object_id_type,
             vector<VehicleMapValue>> vehicle_node_map;
+    google::sparse_hash_map<object_id_type, CrossingPoint*>
+            crossing_node_map;
     google::sparse_hash_map<string, pair<Sidewalk*,
             Sidewalk*>> finished_segments;
+
     geos::index::strtree::STRtree ortho_tree;
     geos::index::strtree::STRtree sidewalk_tree;
     //geos::geom::GeometryFactory geos_factory;
+    const bool is_foreward = true;
+    const bool is_backward = false;
 
     explicit DataStorage(string outfile,
             location_handler_type &location_handler) :
@@ -434,7 +416,7 @@ public:
     }
 
     void insert_in_vehicle_node_map(object_id_type start_node, object_id_type end_node,
-            VehicleRoad* road) {
+            VehicleRoad* road, bool is_crossing) {
 
         bool backlink_is_new = (vehicle_node_map[start_node].size() == 0);
         bool forelink_is_new = (vehicle_node_map[end_node].size() == 0);
@@ -452,9 +434,11 @@ public:
         } else {
             forelink_id = vehicle_node_map[end_node][0].from;
         }
-        VehicleMapValue backward = VehicleMapValue(start_node, forelink_id, backlink_id, road, false);
-        VehicleMapValue forward = VehicleMapValue(end_node, backlink_id, forelink_id, road, true);
-        vehicle_node_map[start_node].push_back(forward);
+        VehicleMapValue backward = VehicleMapValue(start_node, forelink_id,
+                backlink_id, road, is_backward, is_crossing);
+        VehicleMapValue foreward = VehicleMapValue(end_node, backlink_id,
+                forelink_id, road, is_foreward, is_crossing);
+        vehicle_node_map[start_node].push_back(foreward);
         vehicle_node_map[end_node].push_back(backward);
         if (vehicle_node_map[start_node].size() > 1) {
             order_clockwise(start_node);

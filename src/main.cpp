@@ -61,11 +61,13 @@ typedef handler::NodeLocationsForWays<index_pos_type, index_neg_type>
 #include "geom_operate.hpp"
 #include "tag_check.hpp"
 #include "road.hpp"
+#include "pedro_point.hpp"
 #include "data_storage.hpp"
 #include "contrast.hpp"
 #include "prepare_handler.hpp"
 #include "way_handler.hpp"
 #include "sidewalk_factory.hpp"
+#include "geometry_constructor.hpp"
 
 
 void print_help() {
@@ -120,7 +122,7 @@ int main(int argc, char* argv[]) {
     location_handler.ignore_errors();
     DataStorage ds(output_filename, location_handler);
     GeomOperate go;
-    SidewalkFactory sf(ds, location_handler);
+    GeometryConstructor geometry_constructor(ds, location_handler);
     
     
     cerr << "start reading osm ..." << endl;
@@ -142,7 +144,7 @@ int main(int argc, char* argv[]) {
 
     ds.insert_ways();
     cerr << "generate sidewalks ...";
-    sf.generate_sidewalks();
+    geometry_constructor.generate_sidewalks();
 
     //ds.union_vehicle_geometries();
     //ds.union_pedestrian_geometries();

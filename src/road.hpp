@@ -1,4 +1,3 @@
-
 /***
  * Structure to remember the pedestrian and vehicle used roads to create
  * sidewalks and crossings.

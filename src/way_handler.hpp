@@ -88,15 +88,25 @@ class WayHandler : public handler::Handler {
                 (location1.lat() == location2.lat()));
     }
 
+    bool is_node_crossing(object_id_type node_id) {
+        if (ds.crossing_node_map.find(node_id) ==
+                ds.crossing_node_map.end()) {
+            return false;
+        }
+        return true;
+    }
+
+
     void iterate_over_nodes(Way& way, VehicleRoad* road) {
         object_id_type prev_node = 0;
         object_id_type current_node = 0;
         for (NodeRef node : way.nodes()) {
             current_node = node.ref();
             if (prev_node != 0) {
-                
                 if (!has_same_location(prev_node, current_node)) {
-                    ds.insert_in_vehicle_node_map(prev_node, current_node, road);
+                    bool is_crossing = is_node_crossing(node.ref());
+                    ds.insert_in_vehicle_node_map(prev_node, current_node, road,
+                            is_crossing);
                 }
             }
             prev_node = current_node;

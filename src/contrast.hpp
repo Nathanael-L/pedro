@@ -49,7 +49,6 @@ class Contrast {
         Point* ortho_mid = ortho_pair->first->getCentroid();
         const Point* c_ortho_mid = const_cast<const Point*>(ortho_mid);//->getCoordinate();
         double distance = sidewalk->distance(c_ortho_mid);
-        cout << "distance" << distance << endl;
         return distance;
     }
 
@@ -68,10 +67,8 @@ class Contrast {
         double current_distance = get_distance(sidewalk, ortho_pair);
         double shortest_distance = ortho_pair->second;
         if (abs(current_distance - shortest_distance) < tolerance) {
-            cout << "s";
             return true;
         }
-        cout << "n";
         return false;
     }
 
