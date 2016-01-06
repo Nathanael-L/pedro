@@ -1,0 +1,138 @@
+Fußgängerzonen
+Straßentypen        
+  Fußgängerzone     highway=pedestrian
+Plätze              area=yes
+    
+
+KREUZUNGEN
+http://wiki.openstreetmap.org/wiki/Key:crossing
+
+Kreuzungen          highway=crossing
+                    footway=crossing
+                    cycleway=crossing
+
+                    crossing=traffic_signals
+                        Position this tag where the crossing-traffic (pedestrian, bicycles) have
+                        their own traffic lights. Mostly near highway=traffic_signals. 
+
+                    crossing=uncontrolled
+                        A generic crossing with no traffic-signals of any type, just road markings.
+                        e.g. Zebra-crossings; Generally referred to as a "crosswalk" in the US).
+                        Mostly in combination with highway=crossing. 
+
+                    crossing=island
+                        A crossing with a small traffic-island for pedestrians in the middle of the
+                        road. Mostly in combination with highway=crossing. (There is a proposal for
+                        mapping these with more detail: Proposed features/Traffic island.)
+
+                    crossing=no
+                        Where definitely no crossing is possible/legal
+                        
+                    crossing=unmarked
+                        A crossing without road markings or traffic lights
+
+                    crossing=unknown
+                        default - Crossing type is unknown
+
+                    crossing_ref=zebra
+                        zebrastreifen
+
+Kreuzungen werden in pelican, toucan, pegasus (crossing_ref) unterschieden, je nach dem, ab nur
+fußgänger, oder auch fahrräder oder auch pferde kreuzen dürfen
+
+---
+
+HIGHWAY TYPES
+http://wiki.openstreetmap.org/wiki/Key:highway#Roads
+
+
+Allgemeine Annahmen: Innerhalb Ortschaften grundsätlich immer Bürgersteige (mit Außnahme der ersten
+drei Kategorien), Außerhalb Ortschaften wird nicht von Fußwegen ausgegangen
+
+motorway        - meist mehrspurig, Annahmen: kein Bürgersteig,
+trunk             nicht überquerbar
+primary
+ 
+secondary       - "kleinere" Straßen, Annahme: mit Bürgersteig,
+tertiary          riskantes Überqueren, wenn mehrspurig
+
+unclassified    - sehr kleine Straßen, "verbinden Dörfer und Weiler" (vllt.
+                  Schleichwege), Annahmen: ohne Bürgersteig, Überquerung
+                  unproblematisch
+
+road            - unbekannter Straßentyp
+
+residential     - Straßen in Wohngebieten, Annahmen: mit Bürgersteig,
+                  Überquerung grundsätzlich möglich
+
+service         - Zugangsstraßen, z.B. im Industriegebiet, Zugangsbeschränkung
+                  beachten! (access), 
+
+motorway_link   - Auf- / Abfahrten, gleiche Kategorisierung, Annahme: ???
+trunk_link
+primary_link
+secondary_link
+tertiary_link 
+
+living_street   - Fußgänger haben Vorrang, im Sinne von Spielstraßen
+
+pedestrian      - Fußweg, definiert Fußgängerzonen mit Tag area=yes
+
+track           - feldweg, qualität evtl. definiert in tracktype
+
+bus_guideway    - Busstraße mit access=no psv=yes - (z.B. Straße am
+                  Pliensauturm)
+
+raceway         - -
+
+road            - Übergangstag, wenn mapper unsicher
+
+footway         - gleichwertig zu pedestrian, soll nicht in Einkaufsgebieten
+                  und Wohngegenden verwendet werden, kann bicycle=yes haben
+
+steps           - Treppen
+
+path            - undefinierter pfad, z.B. Trappelpfad im Wald, spezifischeres
+                  Tagging wird empfohlen
+                  
+cycleway        - Fahrradweg, kann foot=yes haben
+
+
+OTHER TAGS:
+
+incline=9%/7°       - Steigung, wäre interessant, wie gut das getagged ist
+
+junction=roundabout - Kreisverkehr
+
+lanes=4             - Anzahl der Spuren
+
+lit=yes/no          - Straßenbeleuchtung
+
+motorroad=yes       - Autobahnartig
+
+surface             - Oberflächeninformationen, vorerst ignorieren
+tracktype
+
+
+POIS IM STRASSENVERKEHR
+
+(highway=)
+
+bus_stop                - Bushaltestelle, auf größeren definieren
+                          public_transport=stop_position einzelne Haltestellen
+                          und public_transport=platform den Wartebereich
+
+crossing                - Fußgängerüberweg (immer ein Node - Schnittpunkt von Straße und
+                          Fußgängerüberweg)
+
+elevator                - Aufzug
+
+emergency_access_point  - Notfallschild (D?)
+
+escape                  - Notbremsweg (D?)
+
+street_lamp             - evtl. Hindernis
+
+traffic_signals         - s.o.
+
+emergency=phone         - Notfallsäule
