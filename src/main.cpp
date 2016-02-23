@@ -1,3 +1,19 @@
+/***
+ * main.cpp
+ *
+ *  Created on: Nov 09, 2015
+ *      Author: nathanael
+ *
+ *  pedro - Pedestrian Routing on OSM
+ *  pedro follows a different way of creating a routing graph out of
+ *  OpenStreetMap data. The main concept is to generate sidewalks and to
+ *  consider human behaviour of crossing roads.
+ *  
+ *  The software is available under BSD License
+ *  (http://www.linfo.org/bsdlicense.html)
+ *  
+ */
+
 #include <iostream>
 #include <getopt.h>
 #include <iterator>
@@ -8,25 +24,22 @@
 #include <osmium/visitor.hpp>
 #include <osmium/geom/factory.hpp>
 #include <osmium/osm/location.hpp>
-#include <osmium/osm/relation.hpp>
+//#include <osmium/osm/relation.hpp>
 #include <osmium/osm/tag.hpp>
 #include <osmium/tags/filter.hpp>
 #include <osmium/io/any_input.hpp>
 #include <osmium/handler.hpp>
-#include <osmium/relations/collector.hpp>
+//#include <osmium/relations/collector.hpp>
 #include <osmium/memory/buffer.hpp>
 #include <osmium/geom/ogr.hpp>
 #include <osmium/geom/geos.hpp>
-#include <osmium/geom/wkt.hpp>
+//#include <osmium/geom/wkt.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-//#include <geos.h>
 #include <geos/geom/Coordinate.h>
 #include <geos/geom/CoordinateFilter.h>
 #include <geos/geom/CoordinateArraySequence.h>
 #include <geos/geom/CoordinateArraySequenceFactory.h>
-
 #include <geos/geom/GeometryCollection.h>
-//#include <geos/geom/PrecisionModel.h>
 #include <geos/geom/GeometryFactory.h>
 #include <geos/geom/LineSegment.h>
 #include <geos/index/strtree/STRtree.h>
@@ -36,20 +49,10 @@
 #include <google/sparse_hash_set>
 #include <google/sparse_hash_map>
 
-
 using namespace std;
 using namespace osmium;
 using namespace geos::geom;
 using namespace geos::index::strtree;
-/*using geos::geom::Coordinate;
-using geos::geom::Geometry;
-using geos::geom::LineString;
-using geos::geom::LineSegment;
-using geos::geom::Point;
-using geos::geom::GeometryFactory;
-using geos::geom::CoordinateSequence;
-using geos::geom::CoordinateArraySequence;*/
-
 
 typedef index::map::Dummy<unsigned_object_id_type,
         Location> index_neg_type;
@@ -67,11 +70,17 @@ typedef handler::NodeLocationsForWays<index_pos_type, index_neg_type>
 #include "prepare_handler.hpp"
 #include "way_handler.hpp"
 #include "sidewalk_factory.hpp"
+#include "crossing_factory.hpp"
 #include "geometry_constructor.hpp"
 
 
 void print_help() {
-    cout << "osmi [OPTIONS] INFILE OUTFILE\n\n"
+    cout << "osmi INFILE [OUTFILE]\n\n"
+         << "  INFILE        proper OSM-File (osm or pbf)\n"
+         << "  OUTFILE       name of shapefile directory - must be empty\n"
+         << "  -p            OUTFILE is name of postgis database\n"
+         << "                - not default for performance reasons\n"
+         << "                - it is recomanded to use shp2pgsql instead\n"
          << "  -h, --help           This help message\n"
          //<< "  -d, --debug          Enable debug output !NOT IN USE\n"
          << endl;
@@ -79,20 +88,24 @@ void print_help() {
 
 int main(int argc, char* argv[]) {
     static struct option long_options[] = { { "help", no_argument, 0, 'h' }, {
-            "debug", no_argument, 0, 'd' }, { 0, 0, 0, 0 } };
+            "psql", no_argument, 0, 'p' }, {"debug", no_argument, 0, 'd' }, {
+            0, 0, 0, 0 } };
 
     bool debug = false;
+    bool psql = false;
 
     while (true) {
-        int c = getopt_long(argc, argv, "hd:", long_options, 0);
+        int c = getopt_long(argc, argv, "dhp:", long_options, 0);
         if (c == -1) {
             break;
         }
-
         switch (c) {
         case 'h':
             print_help();
             exit(0);
+        case 'p':
+            psql = true;
+            break;
         case 'd':
             debug = true;
             break;
@@ -104,57 +117,75 @@ int main(int argc, char* argv[]) {
     string input_filename;
     string output_filename;
     int remaining_args = argc - optind;
-    if ((remaining_args < 2) || (remaining_args > 4)) {
-        cerr << "Usage: " << argv[0] << " [OPTIONS] INFILE OUTFILE" << endl;
-        cerr << remaining_args;
-        exit(1);
-    } else if (remaining_args == 2) {
+    if (remaining_args == 2) {
         input_filename = argv[optind];
         output_filename = argv[optind + 1];
         cout << "in: " << input_filename << " out: " << output_filename << endl;
+    } else if (remaining_args == 1) {
+        input_filename = argv[optind];
+        output_filename = "output";
+        cout << "in: " << input_filename << " out: " << output_filename << endl;
     } else {
-        input_filename = "-";
+        print_help();
+        exit(1);
     }
 
     index_pos_type index_pos;
     index_neg_type index_neg;
     location_handler_type location_handler(index_pos, index_neg);
     location_handler.ignore_errors();
-    DataStorage ds(output_filename, location_handler);
+    DataStorage ds(output_filename, location_handler, psql);
     GeomOperate go;
     GeometryConstructor geometry_constructor(ds, location_handler);
+    CrossingFactory crossing_factory(ds, location_handler);
     
-    
-    cerr << "start reading osm ..." << endl;
+    if (debug) cerr << "start reading osm once ..." << endl;
     io::Reader reader1(input_filename);
     PrepareHandler prepare_handler(ds, location_handler);
     apply(reader1, location_handler, prepare_handler);
 
-    cerr << "insert osm footways in postgres ...";
+    if (debug) cerr << "insert osm footways ..." << endl;
     prepare_handler.create_pedestrian_node_map();
     reader1.close();
 
-
-    //PASS 2
-
+    if (debug) cerr << "start reading osm twice ..." << endl;
     io::Reader reader2(input_filename);
     WayHandler way_handler(ds, location_handler);
     apply(reader2, location_handler, way_handler);
     reader2.close();
 
-    ds.insert_ways();
-    cerr << "generate sidewalks ...";
+    if (debug) cerr << "generate sidewalks and osm crossings ..."
+        << endl;
     geometry_constructor.generate_sidewalks();
 
-    //ds.union_vehicle_geometries();
-    //ds.union_pedestrian_geometries();
+    if (debug) cerr << "calculate contrast ..." << endl;
     Contrast contrast = Contrast(ds);
     contrast.check_sidewalks();
-    cerr << "vehicle_vehicle_node_map size: " << ds.vehicle_node_map.size() << endl;
-    ds.insert_vehicle();
-    ds.insert_sidewalks();
 
-    cerr << "ready" << endl;
+    if (debug) cerr << "generate frequent crossing ..." << endl;
+    crossing_factory.generate_frequent_crossings();
+    
+    if (debug) cerr << "fill in sidewalk and crossing tree ..." << endl;
+    ds.fill_sidewalk_tree();
+    ds.fill_crossing_tree();
+    
+    if (debug) cerr << "connect sidewalks and pedestrian ..." << endl;
+    geometry_constructor.connect_sidewalks_and_pedesrians();
+
+    if (debug) cerr << "vehicle_vehicle_node_map size: " << ds.vehicle_node_map.size() << endl;
+    if (debug) cerr << "croosing_node_map size: " << ds.crossing_node_map.size() << endl;
+    if (debug) cerr << "crossing_set size: " << ds.crossing_set.size() << endl;
+
+    if (debug) cerr << "insert ways ..." << endl;
+    ds.insert_ways();
+    //ds.insert_vehicle();
+    ds.insert_sidewalks();
+    ds.insert_crossings();
+
+    if (debug) cerr << "clean up ..." << endl;
+    ds.clean_up();
+
+    cerr << "ready!" << endl;
 
     /*** TEST GEOM OPERATOR ***
     GeomOperate go;

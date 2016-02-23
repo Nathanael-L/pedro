@@ -27,7 +27,6 @@ class WayHandler : public handler::Handler {
     Contrast contrast = Contrast(ds);
     const bool left = true;
     const bool right = false;
-    bool is_first_way = true;
 
     const bool id_in_list(object_id_type osm_id,
             vector<object_id_type> search_list) {
@@ -39,22 +38,31 @@ class WayHandler : public handler::Handler {
         return false;
     }
 
+    /***
+     * PedestrianRoad are created for each way segment between crossings.
+     * Whether a node is a crossing is looked up in the pedestrian_node_map.
+     * The PedestrianRoad is stored to pedestrian_road_set.
+     * The orthogonals for they contrast calculations are also created now.
+     * TODO: some logical problems: e.g. at lindenmuseum crossing.
+     */
     void handle_pedestrian_road(Way& way) {
         object_id_type way_id = way.id();
         auto map_entry = ds.pedestrian_node_map.find(way_id);
         if (map_entry != ds.pedestrian_node_map.end()) {
+            size_t num_points;
             auto first_node = way.nodes().begin();
             auto last_node = way.nodes().begin() + 1;
-            for (auto node = last_node; (node < way.nodes().end()); node++) {
-                object_id_type node_id = node->ref();
-                if ((id_in_list(node_id, map_entry->second)) || 
-                        (last_node == way.nodes().end() - 1)) {
+            for (auto current_node = last_node;
+                    (current_node < way.nodes().end()); current_node++) {
+                
+                object_id_type current_id = current_node->ref();
+                if ((id_in_list(current_id, map_entry->second)) || 
+                        (current_node == way.nodes().end() - 1)) {
                     geos_factory.linestring_start();
-                    size_t num_points = geos_factory.fill_linestring(
-                            first_node, last_node + 1);
+                    num_points = geos_factory.fill_linestring(first_node, last_node + 1);
                     LineString* linestring = geos_factory.linestring_finish(
                             num_points).release();
-                    first_node = node;
+                    first_node = current_node;
                     PedestrianRoad* pedestrian_road = new PedestrianRoad(0, way, linestring);
                     ds.pedestrian_road_set.insert(pedestrian_road);
                     contrast.create_orthogonals(linestring);
@@ -104,9 +112,21 @@ class WayHandler : public handler::Handler {
             current_node = node.ref();
             if (prev_node != 0) {
                 if (!has_same_location(prev_node, current_node)) {
-                    bool is_crossing = is_node_crossing(node.ref());
+                    bool start_is_crossing = is_node_crossing(prev_node);
+                    bool end_is_crossing = is_node_crossing(current_node);
+                    string start_crossing_type = "";
+                    string end_crossing_type = "";
+                    if (start_is_crossing) {
+                        start_crossing_type = ds.crossing_node_map[
+                                prev_node]->type;
+                    }
+                    if (end_is_crossing) {
+                        end_crossing_type = ds.crossing_node_map[
+                                current_node]->type;
+                    }
                     ds.insert_in_vehicle_node_map(prev_node, current_node, road,
-                            is_crossing);
+                            start_is_crossing, start_crossing_type,
+                            end_is_crossing, end_crossing_type);
                 }
             }
             prev_node = current_node;
@@ -121,18 +141,15 @@ public:
     }
 
     void way(Way& way) {
-        if (is_first_way) {
-            cerr << "... handle ways ..." << endl;
-        }
         if (TagCheck::is_highway(way)) {
             if (TagCheck::is_pedestrian(way)) {
                 handle_pedestrian_road(way);
             }
-            if (TagCheck::is_vehicle(way)) {
+            if (TagCheck::is_vehicle(way) && (!TagCheck::is_tunnel(way)) && 
+                (!TagCheck::is_bridge(way))) {
                 handle_vehicle_road(way);
             }
         }
-        is_first_way = false;
     }
 };
 

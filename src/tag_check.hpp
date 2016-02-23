@@ -17,7 +17,7 @@ using namespace std;
 
 class TagCheck {
 
-    /*static const char *get_highway_type(const char *raw_type) {
+    /*static const char* get_highway_type(const char* raw_type) {
         if (!raw_type) {
             return nullptr;
         }
@@ -31,7 +31,7 @@ class TagCheck {
         }
     }*/
 
-    static const bool char_in_list(const char *pattern,
+    static const bool char_in_list(const char* pattern,
             vector<string> search_list) {
         string pattern_str(pattern);
         for (auto item : search_list) {
@@ -95,8 +95,25 @@ public:
         }
     }
 
-    static bool is_polygon(const osmium::OSMObject& osm_object) {
+    static bool is_tunnel(const osmium::OSMObject& osm_object) {
+        const char* tunnel = osm_object.get_value_by_key("tunnel");
+        if ((tunnel) && (!strcmp(tunnel, "yes"))) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
+    static bool is_bridge(const osmium::OSMObject& osm_object) {
+        const char* bridge = osm_object.get_value_by_key("bridge");
+        if ((bridge) && (!strcmp(bridge, "yes"))) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    static bool is_polygon(const osmium::OSMObject& osm_object) {
         //more polygons?
         const char* area = osm_object.get_value_by_key("area");
         if (!area) {
@@ -108,36 +125,36 @@ public:
         return false;
     }
 
-    static const char *get_highway_type(const osmium::OSMObject& osm_object) {
-        return osm_object.get_value_by_key("highway");
+    static const bool is_crossing(const osmium::OSMObject& osm_object) {
+        const char* footway = osm_object.get_value_by_key("footway");
+        if ((footway) && (!strcmp(footway, "crossing"))) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    /*static const char *get_polygon_type(const osmium::Area& area) {
-        const char *type;
-        const char *natural = area.get_value_by_key("natural");
-        if ((natural) && (!strcmp(natural, "coastline"))) {
-            type = "coastline";
+    static const bool node_is_crossing(const osmium::OSMObject& osm_object) {
+        const char* highway = osm_object.get_value_by_key("highway");
+        if ((highway) && (!strcmp(highway, "crossing"))) {
+            return true;
         } else {
-            type = get_waterway_type(area.get_value_by_key("waterway"));
-            //if (!type) {
-            //    type = area.get_value_by_key("water");
-            //}
-            if (!type) {
-                type = area.get_value_by_key("landuse");
-            }
-            if (!type) type = "";
+            return false;
         }
-        return type;
-    }*/
+    }
 
-    static const char *get_name(const osmium::OSMObject& osm_object) {
-        const char *name = osm_object.get_value_by_key("name");
+    static const char* get_name(const osmium::OSMObject& osm_object) {
+        const char* name = osm_object.get_value_by_key("name");
         if (!name) name = "";
         return name;
     }
 
-    static const char get_sidewalk(const osmium::OSMObject& osm_object) {
-        const char *sidewalk= osm_object.get_value_by_key("sidewalk");
+    static const char* get_highway_type(const osmium::OSMObject& osm_object) {
+        return osm_object.get_value_by_key("highway");
+    }
+
+    static const char get_sidewalk_type(const osmium::OSMObject& osm_object) {
+        const char* sidewalk= osm_object.get_value_by_key("sidewalk");
         char sidewalk_chr = 'b';
         if (sidewalk) {
             if ((!strcmp(sidewalk, "none")) || (!strcmp(sidewalk, "no"))) {
@@ -151,8 +168,16 @@ public:
         return sidewalk_chr;
     }
 
+    static const char* get_crossing_type(const OSMObject& osm_object) {
+        const char* crossing = osm_object.get_value_by_key("crossing");
+        if (crossing) {
+            return crossing;
+        }
+        return "";
+    }
+    
     static int get_lanes(const osmium::OSMObject& osm_object) {
-        const char *lanes_chr;
+        const char* lanes_chr;
         lanes_chr = osm_object.get_value_by_key("lanes");
         if (lanes_chr) {
             int lanes = atoi(lanes_chr);
@@ -162,30 +187,23 @@ public:
         }
     }
 
-    static const bool node_is_crossing(const osmium::OSMObject& osm_object) {
-        const char *highway = osm_object.get_value_by_key("highway");
-        if ((highway) && (!strcmp(highway, "crossing"))) {
-            return true;
-        } else {
-            return false;
+    static string get_frequent_crossing_type(string osm_type/*, int lanes*/) {
+        string risk_list[] = {
+            "primary_link", "secondary_link", "tertiary_link"
+        };
+        vector<string> risk_vector;
+        for (string item : risk_list) {
+            risk_vector.push_back(item);
         }
-    }
-    
-    static const char* get_crossing_type(const OSMObject& osm_object) {
-        const char *crossing = osm_object.get_value_by_key("crossing");
-        if (crossing) {
-            return crossing;
+        /* NOT DONE: Sidewalks do not know their lanes.
+        if ((lanes > 1) || (char_in_list("osm_type"))) {
+            return "risk-crossing";
         }
-        return "";
-    }
-    
-    static const bool is_crossing(const osmium::OSMObject& osm_object) {
-        const char *footway = osm_object.get_value_by_key("footway");
-        if ((footway) && (!strcmp(footway, "crossing"))) {
-            return true;
-        } else {
-            return false;
+        */
+        if (char_in_list(osm_type.c_str(), risk_vector)) {
+            return "risk-crossing";
         }
+        return "frequent-crossing";
     }
 };
 

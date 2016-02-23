@@ -4,6 +4,8 @@
  *
  *  Created on: Nov 11, 2015
  *      Author: nathanael
+ *
+ *  Collection of geometric operations used in the algorithmns.
  */
 
 #ifndef GEOM_OPERATE_HPP_
@@ -44,8 +46,10 @@ public:
         geos_wkt_reader = geos::io::WKTReader(geos_factory);
     }
 
-    //from http://rosettacode.org/wiki/Haversine_formula#C
-
+    /***
+     * Haversine calculates the distance between two lonlat pairs.
+     * From http://rosettacode.org/wiki/Haversine_formula#C
+     */
     double haversine(double lon1, double lat1, double lon2, double lat2) {
 
         double dx, dy, dz;
@@ -67,6 +71,13 @@ public:
         return distance;
     }
 
+    double haversine(Coordinate coord1, Coordinate coord2) {
+        
+        double distance;
+        distance = haversine(coord1.x, coord1.y, coord2.x, coord2.y);
+        return distance;
+    }
+
     double haversine(Location location1, Location location2) {
         
         double distance;
@@ -75,9 +86,13 @@ public:
         return distance;
     }
 
-    //inverse haversine from http://stackoverflow.com/questions/3182260/python-geocode-filtering-by-distance
-
-    LonLat inverse_haversine(double lon, double lat,
+    /***
+     * The inverse haversine calculates a ellipse from a location and a
+     * distance.
+     * From http://stackoverflow.com/questions/3182260/
+     * python-geocode-filtering-by-distance
+     */
+    LonLat inverse_haversine(/*double lon,*/ double lat,
             double distance) {
 
         double dlon;
@@ -92,12 +107,16 @@ public:
         return (max(d1, d2) - min (d1, d2));
     }
 
+    /***
+     * The orientation is the angle from one location to another relative to
+     * the north direction.
+     */
     double orientation(double lon1, double lat1, double lon2,
             double lat2) {
 
         double dlon = difference(lon1, lon2);
         double dlat = difference(lat1, lat2);
-        double orientation = atan(dlon / (dlat/* sin(lat1 * TO_RAD)*/)) * TO_DEG;
+        double orientation = atan(dlon / (dlat)) * TO_DEG;
         if (lat1 > lat2) {
             if (lon1 < lon2) {
                 /* 2. Quadrant */
@@ -129,6 +148,9 @@ public:
                 location2.lat());
     }
 
+    /***
+     * Angle between three locations
+     */
     double angle(Location first, Location middle, Location second) {
         double orientation1 = orientation(middle, first);
         double orientation2 = orientation(middle, second);
@@ -160,6 +182,10 @@ public:
         return alpha;
     }
 
+    /***
+     * Calculate a vertical point from one lonlat pair to another on one side
+     * with a giver distance.
+     */
     Point* vertical_point(double lon1, double lat1, double lon2,
             double lat2, double distance, bool left = true) {
 
@@ -168,7 +194,7 @@ public:
             distance *= SQRT2;
             angle = 45;
         }*/
-        LonLat delta = inverse_haversine(lon1, lat1, distance);
+        LonLat delta = inverse_haversine(lat1, distance);
         double reverse_orientation;
         reverse_orientation = orientation(lon1, lat1, lon2, lat2);
         if (left) {
@@ -191,7 +217,7 @@ public:
             distance *= SQRT2;
             angle = 45;
         }*/
-        LonLat delta = inverse_haversine(lon1, lat1, distance);
+        LonLat delta = inverse_haversine(lat1, distance);
         double reverse_orientation;
         reverse_orientation = orientation(lon1, lat1, lon2, lat2);
         if (left) {
@@ -247,8 +273,10 @@ public:
         return ortho_line;
     }
 
+    /***
+     * Creates GEOS LineString of two Points.
+     */
     LineString* connect_points(Point* point1, Point* point2) {
-        
         const Coordinate* coordinate1;
         const Coordinate* coordinate2;
         coordinate1 = point1->getCoordinate();
@@ -260,6 +288,9 @@ public:
         return geos_factory.createLineString(coords);
     }
 
+    /***
+     * Creates GEOS LineString of two osmium Locations.
+     */
     LineString* connect_locations(Location location1, Location location2) {
         Geometry* geos_line = nullptr;
         string target_wkt = "LINESTRING (";
@@ -277,11 +308,108 @@ public:
         return dynamic_cast<LineString*>(geos_line);
     }
 
+    /***
+     * Test if test_point is between point1 and point2.
+     */
+    bool point_is_between(Point* test_point, Point* point1, Point* point2) {
+        double test_lon = test_point->getX();
+        double test_lat = test_point->getY();
+        double lon1 = point1->getX();
+        double lat1 = point1->getY();
+        double lon2 = point2->getX();
+        double lat2 = point2->getY();
+        if ((abs(test_lon - lon1) <= abs(lon2 - lon1)) &&
+                (abs(test_lat - lat1) <= abs(lat2 - lat1))) {
+            return true;
+        }
+        return false;
+    }
+
+    bool point_is_between(const Point* c_test_point, Point* point1, Point* point2) {
+        Point* test_point = const_cast<Point*>(c_test_point);
+        return point_is_between(test_point, point1, point2);
+    }
+
+    /***
+     * Insert point at the beginning or at the end.
+     */
+    LineString* insert_point(LineString*& segment, Geometry* point,
+            bool at_end) {
+
+        CoordinateSequence* coords;
+        coords = segment->getCoordinates();
+        const Coordinate* new_coordinate;
+        new_coordinate = dynamic_cast<Point*>(point)->getCoordinate();
+        int position = (at_end ? coords->getSize() : 0);
+        coords->add(position, *new_coordinate, true);
+        return geos_factory.createLineString(coords);
+    }
+
+    /***
+     * Change the Point in segment at position to the given point.
+     */
+    LineString* set_point(LineString* segment, Geometry* point, int position) {
+        CoordinateSequence* coords;
+        coords = segment->getCoordinates();
+        const Coordinate *new_coordinate;
+        new_coordinate = dynamic_cast<Point*>(point)->getCoordinate();
+        coords->setAt(*new_coordinate, position);
+        return geos_factory.createLineString(coords);
+    }
+
+
+    LineString* set_point(LineString* segment, const Geometry* c_point, int position) {
+        Geometry* point = const_cast<Geometry*>(c_point);
+        return set_point(segment, point, position);
+    }
+
+    LineString* set_point(LineString*& segment, Geometry* point, bool at_end) {
+        int position = (at_end ? segment->getNumPoints() - 1 : 0);
+        return set_point(segment, point, position);
+    }
+
+    /***
+     * Cut a LineString to the position (count from 0).
+     * If from_behind is set to true, the position is count beckward.
+     */
+    LineString* cut_line(LineString*& segment, int position, bool from_behind) {
+        CoordinateSequence* coords;
+        coords = segment->getCoordinates();
+        int num_deletions;
+        if (from_behind) {
+            num_deletions = segment->getNumPoints() - position - 1;
+            position++;
+        } else {
+            num_deletions = position;
+            position = 0;
+        }
+        for (int i = 0; i < num_deletions; ++i) {
+            coords->deleteAt(position);
+        }
+        return geos_factory.createLineString(coords);
+    }
+
+    vector<Coordinate> segmentize(Coordinate start, Coordinate end,
+            double fraction_length) {
+
+        vector<Coordinate> splits;
+        LineSegment segment(start, end);
+        double length = haversine(start.x, start.y, end.x, end.y);
+        double fraction = fraction_length / length;
+        double position = 0;
+        do {
+            Coordinate new_coord;
+            segment.pointAlong(position, new_coord);
+            splits.push_back(new_coord);
+            position += fraction;
+        } while (position < 1);
+        return splits;
+    }
+
     OGRGeometry* ogr_connect_locations(Location location1, Location location2) {
         OGRGeometry* ogr_line = nullptr;
         string target_wkt = "LINESTRING (";
-        target_wkt += to_string(location1.lon()) + " ";
-        target_wkt += to_string(location1.lat()) + ", ";
+        target_wkt += to_string(location1.lon()) + " "; target_wkt += to_string(location1.lat()) + ", ";
         target_wkt += to_string(location2.lon()) + " ";
         target_wkt += to_string(location2.lat()) + ")";
         char* wkt;
@@ -354,6 +482,51 @@ public:
         geos_geom = wkbReader.read(is);
         return geos_geom;
     }*/
+
+    /***
+     * NOT IN USE
+     * Some important intersections are missing, so the Geometries
+     * have to be extended. I've a losing pointer error if I use this.
+     */
+    Geometry* enlarge_line(Geometry*& geometry, double distance) {
+        CoordinateSequence* coords;
+        coords = geometry->getCoordinates();
+        size_t size = coords->size();
+        cout << "SIZE: " << size << endl;
+        const Coordinate front = coords->getAt(0);
+        const Coordinate second = coords->getAt(1);
+        const Coordinate back = coords->getAt(size - 1);
+        const Coordinate second_last = coords->getAt(size - 2);
+        cout << "SIZE: " << size << endl;
+
+        double dx = second.x - front.x;
+        double dy = second.y - front.y;
+        double x = sqrt(pow((dx), 2) /
+                        pow(dx, 2) + pow(dy, 2))
+                        * distance;
+        double y = sqrt(pow((dy), 2) /
+                        pow(dx, 2) + pow(dy, 2))
+                        * distance;
+        const Coordinate new_front(
+                (dx >= 0) ? front.x - x : front.x + x,
+                (dy >= 0) ? front.y - y : front.y + y);
+
+        dx = second_last.x - back.x;
+        dy = second_last.y - back.y;
+        x = sqrt(pow((dx), 2) /
+                 pow(dx, 2) + pow(dy, 2))
+                 * distance;
+        y = sqrt(pow((dy), 2) /
+                 pow(dx, 2) + pow(dy, 2))
+                 * distance;
+        const Coordinate new_back(
+                (dx >= 0) ? back.x - x : back.x + x,
+                (dy >= 0) ? back.y - y : back.y + y);
+                
+        coords->add(0, new_front, false);
+        coords->add(size, new_back, false);
+        return geos_factory.createLineString(coords);
+    }
 
     double get_length(Geometry *geometry) {
         double length = 0;
