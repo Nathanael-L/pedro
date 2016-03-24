@@ -20,8 +20,8 @@
 
 class GeometryConstructor {
 
-    location_handler_type& location_handler;
     DataStorage& ds;
+    location_handler_type& location_handler;
     GeomOperate go;
     google::sparse_hash_map<PedestrianRoad*, vector<PedestrianRoad*>>
             temp_pedestrian_map;
@@ -31,7 +31,6 @@ class GeometryConstructor {
             temp_crossing_map;
     google::sparse_hash_map<string, vector<Sidewalk*>>
             temp_sidewalk_map;
-    char* my_null;
     GeometryFactory geos_factory;
 
     /***
@@ -118,7 +117,7 @@ class GeometryConstructor {
 
         CoordinateSequence *coords;
         coords = multipoint->getCoordinates();
-        for (int i = 0; i < (coords->getSize() - 1); i++) {
+        for (unsigned int i = 0; i < (coords->getSize() - 1); i++) {
             Coordinate current = coords->getAt(i);
             Point* intersection_point = geos_factory.createPoint(current);
             split_and_create(pedestrian, crossing, intersection_point,
@@ -175,7 +174,7 @@ class GeometryConstructor {
 
         CoordinateSequence *coords;
         coords = multipoint->getCoordinates();
-        for (int i = 0; i < (coords->getSize() - 1); i++) {
+        for (unsigned int i = 0; i < (coords->getSize() - 1); i++) {
             Coordinate current = coords->getAt(i);
             Point* intersection_point = geos_factory.createPoint(current);
             split_and_create(pedestrian, sidewalk, intersection_point,
@@ -226,7 +225,6 @@ public:
         PedestrianRoad* null_road;
         temp_pedestrian_map.set_deleted_key(null_road);
         temp_sidewalk_map.set_deleted_key("");
-        my_null = "0";
     }
 
     /***

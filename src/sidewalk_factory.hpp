@@ -106,10 +106,11 @@ class SidewalkFactory {
    
     /***
      * Create sidewalk at one side between two VehicleRoad nodes.
+     * TODO tidyup
      */
-    Sidewalk *construct_parallel_sidewalk(int i, int count_neighbours,
-            object_id_type node_id, vector<VehicleMapValue> neighbours,
-            vector<Sidewalk*>& segments, vector<bool>& reverse,
+    Sidewalk *construct_parallel_sidewalk(int i, object_id_type node_id,
+            vector<VehicleMapValue> neighbours,
+            vector<bool>& reverse,
             bool left) {
 
         object_id_type current_id = node_id;
@@ -241,14 +242,18 @@ public:
             Sidewalk* left_sidewalk = nullptr;
             Sidewalk* right_sidewalk = nullptr;
             if (sidewalk_exists(neighbours[i], left)) {
-                left_sidewalk = construct_parallel_sidewalk(i, count_neighbours,
-                        node_id, neighbours, segments, reverse, left);
+                left_sidewalk = construct_parallel_sidewalk(i, node_id,
+                        neighbours, reverse, left);
+                //left_sidewalk = construct_parallel_sidewalk(i, count_neighbours,
+                        //node_id, neighbours, reverse, left);
             } else {
                 reverse.push_back(false);
             }
             if (sidewalk_exists(neighbours[i], right)) {
-                right_sidewalk = construct_parallel_sidewalk(i, count_neighbours,
-                        node_id, neighbours, segments, reverse, right);
+                right_sidewalk = construct_parallel_sidewalk(i, node_id,
+                        neighbours, reverse, right);
+                //right_sidewalk = construct_parallel_sidewalk(i, count_neighbours,
+                        //node_id, neighbours, reverse, right);
             } else {
                 reverse.push_back(false);
             }

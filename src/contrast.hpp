@@ -123,7 +123,7 @@ class Contrast {
                 for (auto result : results) {
                     ortho_pair_type* ortho_pair =
                             static_cast<ortho_pair_type*>(result);
-                    Geometry* ortho_line = ortho_pair->first;
+                    ortho_line = ortho_pair->first;
                     if (sidewalk->intersects(
                             const_cast<const Geometry*>(ortho_line))) {
                         if (similar_orientation(sidewalk, ortho_line)) {
@@ -156,7 +156,7 @@ class Contrast {
                 Geometry* ortho_line = nullptr;
                 for (auto result : results) {
                     ortho_pair_type* ortho_pair = static_cast<ortho_pair_type*>(result);
-                    Geometry* ortho_line = ortho_pair->first;
+                    ortho_line = ortho_pair->first;
                     if (sidewalk->intersects(const_cast<const Geometry*>(ortho_line))) {
                         if (similar_orientation(sidewalk, ortho_line)) {
                             if (is_shortest_distance(sidewalk, ortho_pair)) {
@@ -189,7 +189,7 @@ public:
         LineString* linestring = dynamic_cast<LineString*>(geometry);
         CoordinateSequence *coords;
         coords = linestring->getCoordinates();
-        for (int i = 0; i < (coords->getSize() - 1); i++) {
+        for (unsigned int i = 0; i < (coords->getSize() - 1); i++) {
             Coordinate start = coords->getAt(i);
             Coordinate end = coords->getAt(i + 1);
             Point* end_point = geos_factory.createPoint(end);

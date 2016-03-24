@@ -154,6 +154,9 @@ public:
         this->length = go.get_length(geometry);
         this->osm_id = road->osm_id;
     }
+
+    virtual ~PedestrianRoad() {
+    }
     
     int get_index() {
         int len = id.length();
@@ -178,11 +181,16 @@ public:
     char sidewalk;
 
     VehicleRoad(int index, Way& way) {
+        this->id = get_id(index, way);
         init_road(id, way);
         osm_id = to_string(way.id());
         sidewalk = TagCheck::get_sidewalk_type(way);
         lanes = TagCheck::get_lanes(way);
     }
+
+    virtual ~VehicleRoad() {
+    }
+    
 };
 
 
@@ -256,6 +264,9 @@ public:
         this->osm_id = origin_sidewalk->osm_id;
     }
 
+    virtual ~Sidewalk() {
+    }
+    
     string get_neighbour_id() {
         char this_side = id.at(12);
         const string other_side = (this_side == '0') ? "1" : "0";
@@ -298,6 +309,7 @@ public:
     
     //string osm_id;
     string osm_type;
+    //string at_osm_type;
 
     Crossing(CrossingID cid, string name, Geometry* geometry,
             string type, string osm_type, double length) {
@@ -311,6 +323,7 @@ public:
         this->geometry = geometry;
         this->type = type;
         this->osm_type = osm_type;
+        //this->at_osm_type = at_osm_type;
         this->length = length;
         //this->osm_id = osm_id;
     }
@@ -330,6 +343,9 @@ public:
         this->osm_type = origin_crossing->osm_type;
     }
 
+    virtual ~Crossing() {
+    }
+    
     int get_index() {
         int index = stoi(id.substr(13, 2));
         return index;

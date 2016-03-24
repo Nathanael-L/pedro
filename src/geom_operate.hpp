@@ -534,7 +534,7 @@ public:
             LineString* linestring = dynamic_cast<LineString*>(geometry);
             CoordinateSequence *coords;
             coords = linestring->getCoordinates();
-            for (int i = 0; i < (coords->getSize() - 1); i++) {
+            for (unsigned int i = 0; i < (coords->getSize() - 1); i++) {
                 Coordinate start = coords->getAt(i);
                 Coordinate end = coords->getAt(i + 1);
                 length += haversine(start.x, start.y, end.x, end.y);

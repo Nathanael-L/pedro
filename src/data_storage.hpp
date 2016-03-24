@@ -46,6 +46,8 @@ struct VehicleMapValue {
 
 class DataStorage {
 
+    string output_database;
+    string output_filename;
     location_handler_type &location_handler;
     GeomOperate go;
     OGRDataSource* data_source;
@@ -56,8 +58,6 @@ class DataStorage {
     //OGRLayer* layer_sidewalks;
     //OGRLayer* layer_crossings;
     //OGRLayer* layer_orthos;
-    string output_database;
-    string output_filename;
 
     geom::OGRFactory<> ogr_factory;
     geom::GEOSFactory<> geos_factory;

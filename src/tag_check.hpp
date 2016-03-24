@@ -31,7 +31,7 @@ class TagCheck {
         }
     }*/
 
-    static const bool char_in_list(const char* pattern,
+    static bool char_in_list(const char* pattern,
             vector<string> search_list) {
         string pattern_str(pattern);
         for (auto item : search_list) {
@@ -57,11 +57,31 @@ public:
             return false;
         }
         const char* highway = osm_object.get_value_by_key("highway");
+        /* ALL 
         string type_list[] = {
             "motorway", "trunk", "primary", "secondary", "tertiary",
             "unclassified", "road", "residential", "service",        
             "motorway_link", "trunk_link", "primary_link", "secondary_link",
             "tertiary_link", "bus_guideway", "unclassified"
+        };
+        */
+        string type_list[] = {
+            // "motorway",
+            // "trunk",
+            "primary",
+            "secondary",
+            "tertiary",
+            "unclassified",
+            // "road",
+            "residential",
+            "service",        
+            // "motorway_link",
+            // "trunk_link",
+            "primary_link",
+            "secondary_link",
+            "tertiary_link",
+            "bus_guideway",
+            "unclassified"
         };
         vector<string> type_vector;
         for (string item : type_list) {
@@ -76,7 +96,12 @@ public:
         }
         const char* highway = osm_object.get_value_by_key("highway");
         string type_list[] = {
-            "pedestrian", "footway", "steps", "path", "track", "living_street"
+            "pedestrian",
+            "footway",
+            "steps",
+            "path",
+            "track",
+            "living_street"
         };
         vector<string> type_vector;
         for (string item : type_list) {
@@ -125,7 +150,7 @@ public:
         return false;
     }
 
-    static const bool is_crossing(const osmium::OSMObject& osm_object) {
+    static bool is_crossing(const osmium::OSMObject& osm_object) {
         const char* footway = osm_object.get_value_by_key("footway");
         if ((footway) && (!strcmp(footway, "crossing"))) {
             return true;
@@ -134,7 +159,7 @@ public:
         }
     }
 
-    static const bool node_is_crossing(const osmium::OSMObject& osm_object) {
+    static bool node_is_crossing(const osmium::OSMObject& osm_object) {
         const char* highway = osm_object.get_value_by_key("highway");
         if ((highway) && (!strcmp(highway, "crossing"))) {
             return true;
@@ -153,8 +178,8 @@ public:
         return osm_object.get_value_by_key("highway");
     }
 
-    static const char get_sidewalk_type(const osmium::OSMObject& osm_object) {
-        const char* sidewalk= osm_object.get_value_by_key("sidewalk");
+    static char get_sidewalk_type(const osmium::OSMObject& osm_object) {
+        const char* sidewalk = osm_object.get_value_by_key("sidewalk");
         char sidewalk_chr = 'b';
         if (sidewalk) {
             if ((!strcmp(sidewalk, "none")) || (!strcmp(sidewalk, "no"))) {
@@ -189,7 +214,8 @@ public:
 
     static string get_frequent_crossing_type(string osm_type/*, int lanes*/) {
         string risk_list[] = {
-            "primary_link", "secondary_link", "tertiary_link"
+            "primary",
+            "primary_link",
         };
         vector<string> risk_vector;
         for (string item : risk_list) {

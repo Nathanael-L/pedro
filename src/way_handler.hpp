@@ -21,14 +21,14 @@ class WayHandler : public handler::Handler {
 
     geom::OGRFactory<> ogr_factory;
     geom::GEOSFactory<> geos_factory;
-    location_handler_type& location_handler;
     DataStorage& ds;
+    location_handler_type& location_handler;
     GeomOperate go;
     Contrast contrast = Contrast(ds);
     const bool left = true;
     const bool right = false;
 
-    const bool id_in_list(object_id_type osm_id,
+    bool id_in_list(object_id_type osm_id,
             vector<object_id_type> search_list) {
         for (auto item : search_list) {
             if (item == osm_id) {

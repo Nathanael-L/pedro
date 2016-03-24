@@ -34,7 +34,7 @@ class CrossingFactory {
      * a length. Insert object into crossing_set.
      */
     void insert_crossing(Point* start, Point* end, Sidewalk* sidewalk,
-            string type, string at_osm_type) {
+            string type, string osm_type) {
 
         Geometry* geometry = nullptr;
         geometry = go.connect_points(start, end);
@@ -42,7 +42,7 @@ class CrossingFactory {
         double length = go.get_length(geometry);
         Crossing* crossing = nullptr;
         crossing = new Crossing(cid, sidewalk->name, geometry, type,
-                sidewalk->at_osm_type, length);
+                osm_type, length);
         ds.crossing_set.insert(crossing);
     }
 
@@ -50,7 +50,7 @@ class CrossingFactory {
      * creation direction. Call insert_crossing.
      */
     void create_osm_crossing(Sidewalk*& sidewalk1, Sidewalk*& sidewalk2,
-                bool reverse_first, bool reverse_second, string at_osm_type) {
+                bool reverse_first, bool reverse_second, string osm_type) {
         
         LineString* segment1 = dynamic_cast<LineString*>(sidewalk1->geometry);
         LineString* segment2 = dynamic_cast<LineString*>(sidewalk2->geometry);
@@ -66,8 +66,7 @@ class CrossingFactory {
         } else {
             end_point = segment2->getStartPoint();
         }
-        insert_crossing(start_point, end_point, sidewalk1, "osm-crossing",
-                at_osm_type);
+        insert_crossing(start_point, end_point, sidewalk1, "osm-crossing", osm_type);
     }
     
     /***
@@ -130,7 +129,7 @@ class CrossingFactory {
                 sidewalk->geometry);
         CoordinateSequence *coords;
         coords = linestring->getCoordinates();
-        for (int i = 0; i < (coords->getSize() - 1); i++) {
+        for (unsigned int i = 0; i < (coords->getSize() - 1); i++) {
             Coordinate start = coords->getAt(i);
             Coordinate end = coords->getAt(i + 1);
             if (go.haversine(start, end) < segment_size) {
@@ -160,8 +159,8 @@ public:
      * Create OSM crossing of two parallel sidewalks, called by
      * GeometryConstructor.
      */
-    void generate_osm_crossing(vector<Sidewalk*>& segments, vector<bool>& reverse,
-            string type) {
+    void generate_osm_crossing(vector<Sidewalk*>& segments,
+            vector<bool>& reverse, string type) {
 
         int count_segments = segments.size();
         if (count_segments == 4) {
@@ -169,7 +168,7 @@ public:
                 create_osm_crossing(segments[0], segments[1], reverse[0],
                         reverse[1], type);
             }
-        } //QUARK!!!!
+        }
     }
 
     /***
@@ -213,7 +212,7 @@ public:
                             sidewalk->at_osm_type);
                     insert_crossing(start_point, end_point, sidewalk,
                             crossing_type, "");
-                } 
+                }
             }
             segmentized_sidewalks.insert(sidewalk_id);
             segmentized_sidewalks.insert(neighbour_id);
